@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import LandingPage from './pages/LandingPage';
 import QuestionBank from './pages/QuestionBank';
+import AboutPage from './pages/AboutPage';
 import './App.css';
 
 const App = () => {
@@ -10,6 +11,7 @@ const App = () => {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/questionbank" element={<QuestionBank />} />
+        <Route path="/about" element={<AboutPage />} />
       </Routes>
     </Router>
   );
