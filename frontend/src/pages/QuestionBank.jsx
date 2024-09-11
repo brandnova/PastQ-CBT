@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { BookOpen, GraduationCap, Lightbulb, PenTool, Brain } from 'lucide-react';
 import Navbar from '../components/Navbar';
 
-const AdvancedEducationalQuizApp = () => {
+const QBankApp = () => {
   const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState({});
@@ -128,7 +128,7 @@ const AdvancedEducationalQuizApp = () => {
     return <div dangerouslySetInnerHTML={{ __html: html }} />;
   };
 
-  if (loading) return <div className="text-center mt-8">Loading questions...</div>;
+  if (loading) return <div className="text-center mt-10">Loading questions...</div>;
   if (error) return <div className="text-center mt-8 text-red-500">{error}</div>;
 
   if (!quizStarted && !quizCompleted) {
@@ -151,7 +151,7 @@ const AdvancedEducationalQuizApp = () => {
           );
         })}
         <Navbar />
-        <h1 className="text-3xl mt-5 font-bold text-center mb-8 text-white">Setup</h1>
+        <h1 className="text-3xl mt-5 font-bold text-center mb-8 text-indigo-900">Setup</h1>
         <div className="bg-white rounded-lg shadow-md p-6 m-6">
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700">Subject</label>
@@ -229,17 +229,17 @@ const AdvancedEducationalQuizApp = () => {
     return (
       <div className="container mx-auto p-4 bg-gray-100 min-h-screen">
         <Navbar />
-        <h1 className="text-3xl mt-5 font-bold text-center mb-8 text-white">Results</h1>
+        <h1 className="text-3xl mt-5 font-bold text-center mb-8 text-indigo-900">Results</h1>
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h2 className="text-2xl font-bold mb-4">Your Score: {score} / {questions.length}</h2>
           {questions.map((question, index) => (
             <div key={index} className="mb-6 p-4 border rounded">
               <h3 className="font-semibold mb-2">Question {index + 1}:</h3>
               {renderHTML(question.question)}
-              <p className="mt-2">
+              <p className={`mt-2 ${userAnswers[index] === question.answer ? 'text-green-600' : 'text-red-600'}`}>
                 Your answer: {question.option[userAnswers[index]] || 'Not answered'}
               </p>
-              <p className={`mt-1 ${userAnswers[index] === question.answer ? 'text-green-600' : 'text-red-600'}`}>
+              <p className="mt-1">
                 Correct answer: {question.option[question.answer]}
               </p>
             </div>
@@ -268,7 +268,7 @@ const AdvancedEducationalQuizApp = () => {
   return (
     <div className="container mx-auto p-4 bg-gray-100 min-h-screen">
       <Navbar />
-      <h1 className="text-3xl mt-5 font-bold text-center mb-8 text-white">Questions</h1>
+      <h1 className="text-3xl mt-5 font-bold text-center mb-8 text-indigo-900">Questions</h1>
 
       <div className="mb-6 flex justify-between items-center bg-white p-4 rounded-lg shadow">
         <div className="flex items-center space-x-4">
@@ -362,4 +362,4 @@ const AdvancedEducationalQuizApp = () => {
   );
 };
 
-export default AdvancedEducationalQuizApp;
+export default QBankApp;
