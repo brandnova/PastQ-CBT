@@ -1,26 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaGraduationCap } from 'react-icons/fa';
 import { BookOpen, GraduationCap, Lightbulb, PenTool, Brain } from 'lucide-react';
 import axios from 'axios';
 import Logo from '../assets/qbank.svg';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
-    username: '',
+    first_name: '',
+    last_name: '',
     email: '',
     password: '',
     confirmPassword: '',
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  
+  useEffect(() => {
+    // Check if user is already authenticated
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      navigate('/'); // Redirect to home page if already authenticated
+    }
+  }, [navigate]);
+
   const handleToggle = () => {
     setIsLogin(!isLogin);
-    setFormData({ username: '', email: '', password: '', confirmPassword: '' });
+    setFormData({ first_name: '', last_name: '', email: '', password: '', confirmPassword: '' });
     setError('');
     setSuccess('');
   };
@@ -29,14 +40,11 @@ const AuthPage = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccess('');
   
-    // Check if passwords match during registration
     if (!isLogin && formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -46,26 +54,39 @@ const AuthPage = () => {
       const response = await axios.post(
         `http://localhost:8000/api/${isLogin ? 'login' : 'register'}`,
         isLogin
-          ? { email: formData.email, password: formData.password } // Login payload
-          : { username: formData.username, email: formData.email, password1: formData.password, password2: formData.confirmPassword } // Register payload
+          ? { email: formData.email, password: formData.password }
+          : { 
+              email: formData.email, 
+              password: formData.password, 
+              password_confirm: formData.confirmPassword,
+              first_name: formData.first_name,
+              last_name: formData.last_name
+            },
+        {
+          withCredentials: true
+        }
       );
-  
-      // Store the token after a successful login/registration (if provided)
-      if (response.data.token) {
-        localStorage.setItem('authToken', response.data.token);
-      }
-  
-      // Handle success message
-      setSuccess(response.data.message);
-  
-      // Redirect after successful login
+
       if (isLogin) {
-        window.location.href = '/questionbank';
+        if (response.data.token) {
+          localStorage.setItem('access_token', response.data.token);
+          setSuccess('Login successful. Redirecting...');
+          setTimeout(() => {
+            const from = location.state?.from?.pathname || '/questionbank';
+            navigate(from, { replace: true });
+          }, 2000);
+        }
+      } else {
+        setSuccess('Registration successful. Please log in.');
+        setTimeout(() => {
+          setIsLogin(true);
+          setFormData({ ...formData, password: '', confirmPassword: '' });
+        }, 2000);
       }
       
     } catch (err) {
-      // Enhanced error handling
       setError(err.response?.data?.detail || err.response?.data?.message || 'An error occurred');
+      console.error(err);
     }
   };
 
@@ -73,20 +94,20 @@ const AuthPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-400 to-purple-500 relative overflow-hidden flex items-center justify-center">
-        {/* Background Icons */}
-        {[...Array(20)].map((_, i) => {
-            const Icon = icons[Math.floor(Math.random() * icons.length)];
-            const top = `${Math.random() * 100}%`;
-            const left = `${Math.random() * 100}%`;
-            const size = 16 + Math.random() * 32; // Random size between 16 and 48
-            return (
-            <Icon 
-                key={i}
-                className="absolute text-white opacity-10"
-                style={{top, left, width: size, height: size}}
-            />
-            );
-        })}
+      {/* Background Icons */}
+      {[...Array(20)].map((_, i) => {
+        const Icon = icons[Math.floor(Math.random() * icons.length)];
+        const top = `${Math.random() * 100}%`;
+        const left = `${Math.random() * 100}%`;
+        const size = 16 + Math.random() * 32;
+        return (
+          <Icon 
+            key={i}
+            className="absolute text-white opacity-10"
+            style={{top, left, width: size, height: size}}
+          />
+        );
+      })}
 
       <div className="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
             <div className="flex items-center justify-center">
@@ -113,9 +134,10 @@ const AuthPage = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {!isLogin && (
+            <>
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                Username
+              <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">
+                First Name
               </label>
               <div className="mt-1 relative rounded-md shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -123,16 +145,37 @@ const AuthPage = () => {
                 </div>
                 <input
                   type="text"
-                  name="username"
-                  id="username"
+                  name="first_name"
+                  id="first_name"
                   required
                   className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
-                  placeholder="Username"
-                  value={formData.username}
+                  placeholder="First Name"
+                  value={formData.first_name}
                   onChange={handleChange}
                 />
               </div>
             </div>
+            <div>
+            <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">
+              Last Name
+            </label>
+            <div className="mt-1 relative rounded-md shadow-sm">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FaUser className="text-gray-400" />
+              </div>
+              <input
+                type="text"
+                name="last_name"
+                id="last_name"
+                required
+                className="focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 sm:text-sm border-gray-300 rounded-md"
+                placeholder="Last Name"
+                value={formData.last_name}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+          </>
           )}
 
           <div>
@@ -185,7 +228,9 @@ const AuthPage = () => {
               </div>
             </div>
           </div>
-
+          {isLogin && (
+          <p> Forgot Password? <Link to="/forgot-password" className="text-blue-500 hover:underline hover:text-blue-400">Click Here</Link></p>
+          )}
           {!isLogin && (
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
