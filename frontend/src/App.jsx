@@ -1,19 +1,41 @@
 import React from 'react';
-import { HashRouter as Router, Route, Routes } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import ProtectedRoute from './components/HOC';
 import LandingPage from './pages/LandingPage';
 import QuestionBank from './pages/QuestionBank';
 import AboutPage from './pages/AboutPage';
 import AuthPage from './pages/AuthPage';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import TrialMode from './pages/TrialPage';
+
 import './App.css';
 
 const App = () => {
+  const isAuthenticated = !!localStorage.getItem('access_token');
+
   return (
     <Router>
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/questionbank" element={<QuestionBank />} />
+        <Route 
+          path="/questionbank" 
+          element={
+            <ProtectedRoute requireSubscription={true}>
+              <QuestionBank />
+            </ProtectedRoute>
+          } 
+        />
+        <Route path="/trial" element={<TrialMode />} />
         <Route path="/about" element={<AboutPage />} />
-        <Route path="/auth" element={<AuthPage />} />
+        <Route 
+          path="/auth" 
+          element={
+            isAuthenticated ? <Navigate to="/" replace /> : <AuthPage />
+          } 
+        />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset/:token" element={<ResetPassword />} />
       </Routes>
     </Router>
   );

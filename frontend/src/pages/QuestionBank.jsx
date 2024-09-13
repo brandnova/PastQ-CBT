@@ -2,9 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { FaPlay, FaPause, FaClock, FaRedo, FaHome } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { BookOpen, GraduationCap, Lightbulb, PenTool, Brain } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
+import axios from 'axios';
+import { jwtDecode } from 'jwt-decode';
 
 const QBankApp = () => {
+  const [user, setUser] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState({});
@@ -19,8 +23,92 @@ const QBankApp = () => {
   const [timeLeft, setTimeLeft] = useState(0);
   const [timerPaused, setTimerPaused] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
   const icons = [BookOpen, GraduationCap, Lightbulb, PenTool, Brain];
+
+  
+  useEffect(() => {
+    fetchUserInfo();
+    const intervalId = setInterval(checkTokenExpiration, 60000);
+    return () => clearInterval(intervalId);
+  }, []);
+
+  const checkTokenExpiration = async () => {
+    const accessToken = localStorage.getItem('access_token');
+    if (accessToken && checkIfTokenExpired(accessToken)) {
+      await refreshAccessToken();
+    }
+  };
+
+  const fetchUserInfo = async () => {
+    try {
+      let accessToken = localStorage.getItem('access_token');
+      if (!accessToken) {
+        console.error('No access token found');
+        navigate('/auth');
+        return;
+      }
+
+      if (checkIfTokenExpired(accessToken)) {
+        accessToken = await refreshAccessToken();
+        if (!accessToken) {
+          console.error('Unable to refresh access token');
+          navigate('/auth');
+          return;
+        }
+      }
+
+      const response = await axios.get('http://localhost:8000/api/user', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        withCredentials: true, // This ensures cookies are sent with the request
+      });
+
+      setUser(response.data);
+    } catch (error) {
+      console.error('Error fetching user info:', error);
+      navigate('/auth');
+    }
+  };
+
+  const checkIfTokenExpired = (token) => {
+    const decodedToken = jwtDecode(token);
+    const currentTime = Date.now() / 1000;
+    return decodedToken.exp < currentTime;
+  };
+
+  const refreshAccessToken = async () => {
+    try {
+      const response = await axios.post('http://localhost:8000/api/refresh', {}, {
+        withCredentials: true, // This ensures cookies are sent with the request
+      });
+
+      const newAccessToken = response.data.token;
+      localStorage.setItem('access_token', newAccessToken);
+      return newAccessToken;
+    } catch (error) {
+      console.error('Error refreshing access token:', error);
+      navigate('/auth');
+      return null;
+    }
+  };
+
+
+  const logout = async () => {
+    try {
+      await axios.post('http://localhost:8000/api/logout', {}, {
+        withCredentials: true
+      });
+      localStorage.removeItem('access_token');
+      navigate('/auth');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      throw error;
+    }
+  };
+  
 
   useEffect(() => {
     let timer;
@@ -124,9 +212,24 @@ const QBankApp = () => {
     setCurrentQuestionIndex(0);
   };
 
+  const handleShare = () => {
+    // Implement share functionality
+    console.log('Sharing results...');
+  };
+
+  const handleSave = () => {
+    // Implement save functionality
+    console.log('Saving results...');
+  };
+
   const renderHTML = (html) => {
     return <div dangerouslySetInnerHTML={{ __html: html }} />;
   };
+
+
+  if (!user) {
+    return <div className="text-center mt-10">Loading...</div>;
+  }
 
   if (loading) return <div className="text-center mt-10">Loading questions...</div>;
   if (error) return <div className="text-center mt-8 text-red-500">{error}</div>;
@@ -151,8 +254,19 @@ const QBankApp = () => {
           );
         })}
         <Navbar />
+        
         <h1 className="text-3xl mt-5 font-bold text-center mb-8 text-indigo-900">Setup</h1>
         <div className="bg-white rounded-lg shadow-md p-6 m-6">
+        
+        <strong className="text-2xl">User Info</strong>
+        <p>Name: {user.first_name} {user.last_name}</p>
+        <p>Email: {user.email}</p>
+          <button 
+            onClick={logout}
+            className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+          >
+            Logout
+          </button>
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700">Subject</label>
             <select
@@ -351,6 +465,18 @@ const QBankApp = () => {
           </button>
         ))}
       </div>
+      <button
+        onClick={handleShare}
+        className="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition duration-300 flex items-center"
+      >
+        <FaShareAlt className="mr-2" /> Share
+      </button>
+      <button
+        onClick={handleSave}
+        className="bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition duration-300 flex items-center"
+      >
+        <FaSave className="mr-2" /> Save
+      </button>
 
       <button
         onClick={handleQuizSubmit}

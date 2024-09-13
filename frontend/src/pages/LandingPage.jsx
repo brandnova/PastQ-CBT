@@ -30,7 +30,7 @@ const LandingPage = () => {
         <p className="text-xl mb-8 p-5 text-center max-w-2xl">
           Enhance your learning with our comprehensive collection of past exam questions. Practice, learn, and excel in your studies.
         </p>
-        <Link to="/questionbank">
+        <Link to="/trial">
           <button className="bg-white text-blue-500 font-bold py-3 px-6 rounded-full hover:bg-blue-100 transition duration-300 transform hover:scale-105">
             Explore Question Bank
           </button>
