@@ -25,7 +25,7 @@ const AuthPage = () => {
     // Check if user is already authenticated
     const token = localStorage.getItem('access_token');
     if (token) {
-      navigate('/'); // Redirect to home page if already authenticated
+      navigate('/'); 
     }
   }, [navigate]);
 

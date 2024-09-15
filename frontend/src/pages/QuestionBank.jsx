@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { FaPlay, FaPause, FaClock, FaRedo, FaHome } from 'react-icons/fa';
+import { FaPlay, FaPause, FaClock, FaRedo, FaHome, FaSave } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { BookOpen, GraduationCap, Lightbulb, PenTool, Brain } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
-import axios from 'axios';
-import { jwtDecode } from 'jwt-decode';
+import UserInfoCard from '../components/UserInfoCard';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
-const QBankApp = () => {
-  const [user, setUser] = useState(null);
+const QBankApp = ({ user }) => {
   const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState({});
@@ -19,96 +18,13 @@ const QBankApp = () => {
     examType: 'utme',
     numberOfQuestions: 40,
     timeLimit: 60, // in minutes
+    year: '', 
   });
   const [timeLeft, setTimeLeft] = useState(0);
   const [timerPaused, setTimerPaused] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const navigate = useNavigate();
+  const [error, setError] = useState(null);
   const icons = [BookOpen, GraduationCap, Lightbulb, PenTool, Brain];
-
-  
-  useEffect(() => {
-    fetchUserInfo();
-    const intervalId = setInterval(checkTokenExpiration, 60000);
-    return () => clearInterval(intervalId);
-  }, []);
-
-  const checkTokenExpiration = async () => {
-    const accessToken = localStorage.getItem('access_token');
-    if (accessToken && checkIfTokenExpired(accessToken)) {
-      await refreshAccessToken();
-    }
-  };
-
-  const fetchUserInfo = async () => {
-    try {
-      let accessToken = localStorage.getItem('access_token');
-      if (!accessToken) {
-        console.error('No access token found');
-        navigate('/auth');
-        return;
-      }
-
-      if (checkIfTokenExpired(accessToken)) {
-        accessToken = await refreshAccessToken();
-        if (!accessToken) {
-          console.error('Unable to refresh access token');
-          navigate('/auth');
-          return;
-        }
-      }
-
-      const response = await axios.get('http://localhost:8000/api/user', {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        withCredentials: true, // This ensures cookies are sent with the request
-      });
-
-      setUser(response.data);
-    } catch (error) {
-      console.error('Error fetching user info:', error);
-      navigate('/auth');
-    }
-  };
-
-  const checkIfTokenExpired = (token) => {
-    const decodedToken = jwtDecode(token);
-    const currentTime = Date.now() / 1000;
-    return decodedToken.exp < currentTime;
-  };
-
-  const refreshAccessToken = async () => {
-    try {
-      const response = await axios.post('http://localhost:8000/api/refresh', {}, {
-        withCredentials: true, // This ensures cookies are sent with the request
-      });
-
-      const newAccessToken = response.data.token;
-      localStorage.setItem('access_token', newAccessToken);
-      return newAccessToken;
-    } catch (error) {
-      console.error('Error refreshing access token:', error);
-      navigate('/auth');
-      return null;
-    }
-  };
-
-
-  const logout = async () => {
-    try {
-      await axios.post('http://localhost:8000/api/logout', {}, {
-        withCredentials: true
-      });
-      localStorage.removeItem('access_token');
-      navigate('/auth');
-    } catch (error) {
-      console.error('Error during logout:', error);
-      throw error;
-    }
-  };
-  
 
   useEffect(() => {
     let timer;
@@ -126,10 +42,10 @@ const QBankApp = () => {
     setLoading(true);
     setError(null);
     try {
-      const { subject, examType, numberOfQuestions } = quizSettings;
-      const url = `https://questions.aloc.com.ng/api/v2/m/${numberOfQuestions}?subject=${subject}&type=${examType}&random=true`;
+      const { subject, examType, numberOfQuestions, year } = quizSettings;
+      let url = `https://questions.aloc.com.ng/api/v2/m/${numberOfQuestions}?subject=${subject}&type=${examType}&random=true`;
+      if (year) url += `&year=${year}`; 
 
-      // Replace with your actual access token
       const API_TOKEN = 'ALOC-4f56e66ca205556ccddc';
       
       const response = await fetch(url, {
@@ -212,24 +128,26 @@ const QBankApp = () => {
     setCurrentQuestionIndex(0);
   };
 
-  const handleShare = () => {
-    // Implement share functionality
-    console.log('Sharing results...');
-  };
-
-  const handleSave = () => {
-    // Implement save functionality
-    console.log('Saving results...');
+  const generatePDF = () => {
+    const input = document.getElementById('resultSection');
+    
+    // Convert the HTML content into canvas
+    html2canvas(input).then((canvas) => {
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF();
+      
+      // Adding the image to the PDF (width: 210mm, height: auto)
+      pdf.addImage(imgData, 'PNG', 0, 0, 210, canvas.height * 210 / canvas.width);
+      
+      // Save the PDF
+      pdf.save("quiz-result.pdf");
+    });
   };
 
   const renderHTML = (html) => {
     return <div dangerouslySetInnerHTML={{ __html: html }} />;
   };
 
-
-  if (!user) {
-    return <div className="text-center mt-10">Loading...</div>;
-  }
 
   if (loading) return <div className="text-center mt-10">Loading questions...</div>;
   if (error) return <div className="text-center mt-8 text-red-500">{error}</div>;
@@ -254,19 +172,10 @@ const QBankApp = () => {
           );
         })}
         <Navbar />
-        
         <h1 className="text-3xl mt-5 font-bold text-center mb-8 text-indigo-900">Setup</h1>
+        <UserInfoCard user={user} quizSettings={quizSettings} quizCompleted={quizCompleted} />
         <div className="bg-white rounded-lg shadow-md p-6 m-6">
         
-        <strong className="text-2xl">User Info</strong>
-        <p>Name: {user.first_name} {user.last_name}</p>
-        <p>Email: {user.email}</p>
-          <button 
-            onClick={logout}
-            className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
-          >
-            Logout
-          </button>
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700">Subject</label>
             <select
@@ -296,6 +205,20 @@ const QBankApp = () => {
               <option value="utme">UTME</option>
               <option value="wassce">WASSCE</option>
               <option value="post-utme">Post-UTME</option>
+            </select>
+          </div>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700">Year</label>
+            <select
+              name="year"
+              value={quizSettings.year}
+              onChange={handleSettingsChange}
+              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+            >
+              <option value="">All Years</option>
+              {Array.from({ length: 23 }, (_, i) => 2023 - i).map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
             </select>
           </div>
           <div className="mb-4">
@@ -341,38 +264,46 @@ const QBankApp = () => {
     }, 0);
 
     return (
-      <div className="container mx-auto p-4 bg-gray-100 min-h-screen">
-        <Navbar />
-        <h1 className="text-3xl mt-5 font-bold text-center mb-8 text-indigo-900">Results</h1>
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-2xl font-bold mb-4">Your Score: {score} / {questions.length}</h2>
-          {questions.map((question, index) => (
-            <div key={index} className="mb-6 p-4 border rounded">
-              <h3 className="font-semibold mb-2">Question {index + 1}:</h3>
-              {renderHTML(question.question)}
-              <p className={`mt-2 ${userAnswers[index] === question.answer ? 'text-green-600' : 'text-red-600'}`}>
-                Your answer: {question.option[userAnswers[index]] || 'Not answered'}
-              </p>
-              <p className="mt-1">
-                Correct answer: {question.option[question.answer]}
-              </p>
+      <div className=" bg-gray-100 pb-4">
+          <Navbar />
+          <div id="resultSection" className="mb-4 p-4 min-h-screen">
+          <UserInfoCard user={user} quizSettings={quizSettings} quizCompleted={quizCompleted} />
+          <div className="bg-white rounded-lg shadow-md p-6 m-6">
+            <div className="justify-between mb-2">
+              <h2 className="text-2xl font-bold mb-4">Your Score: {score} / {questions.length}</h2>
             </div>
-          ))}
+            {questions.map((question, index) => (
+              <div key={index} className="mb-6 p-4 border rounded">
+                <h3 className="font-semibold mb-2">Question {index + 1}:</h3>
+                {renderHTML(question.question)}
+                <p className={`mt-2 ${userAnswers[index] === question.answer ? 'text-green-600' : 'text-red-600'}`}>
+                  Your answer: {question.option[userAnswers[index]] || 'Not answered'}
+                </p>
+                <p className="mt-1">
+                  Correct answer: {question.option[question.answer]}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex justify-center space-x-4">
-          <button
-            onClick={handleRetakeQuiz}
-            className="bg-indigo-500 text-white py-2 px-4 rounded-lg hover:bg-indigo-600 transition duration-300 flex items-center"
-          >
-            <FaRedo className="mr-2" /> Retake Quiz
-          </button>
-          <button
-            onClick={handleReturnHome}
-            className="bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition duration-300 flex items-center"
-          >
-            <FaHome className="mr-2" /> Return to Home
-          </button>
-        </div>
+        <div className="flex justify-center space-x-4 my-6">
+            <button
+              onClick={handleRetakeQuiz}
+              className="bg-indigo-500 text-white py-2 px-4 rounded-lg hover:bg-indigo-600 transition duration-300 flex items-center"
+            >
+              <FaRedo className="mr-2" /> Retake Quiz
+            </button>
+            <button onClick={generatePDF} className="bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition duration-300 flex items-center"
+            >
+              <FaSave className="mr-2" /> Download as PDF
+            </button>
+            <button
+              onClick={handleReturnHome}
+              className="bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition duration-300 flex items-center"
+            >
+              <FaHome className="mr-2" /> Return to Home
+            </button>
+          </div>
       </div>
     );
   }
@@ -380,110 +311,99 @@ const QBankApp = () => {
   const currentQuestion = questions[currentQuestionIndex];
 
   return (
-    <div className="container mx-auto p-4 bg-gray-100 min-h-screen">
-      <Navbar />
-      <h1 className="text-3xl mt-5 font-bold text-center mb-8 text-indigo-900">Questions</h1>
+    <div>
+        <Navbar />
+      <div className=" mx-auto p-4 bg-gray-100 min-h-screen">
+        <h1 className="text-3xl mt-5 font-bold text-center mb-8 text-indigo-900">Questions</h1>
 
-      <div className="mb-6 flex justify-between items-center bg-white p-4 rounded-lg shadow">
-        <div className="flex items-center space-x-4">
-          <span className="text-indigo-600 font-semibold">
-            Question: {currentQuestionIndex + 1}/{questions.length}
-          </span>
-          <span className="text-indigo-600 font-semibold flex items-center">
-            <FaClock className="mr-2" />
-            {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
-          </span>
+        <div className="mb-6 flex justify-between items-center bg-white p-4 rounded-lg shadow">
+          <div className="flex items-center space-x-4">
+            <span className="text-indigo-600 font-semibold">
+              Question: {currentQuestionIndex + 1}/{questions.length}
+            </span>
+            <span className="text-indigo-600 font-semibold flex items-center">
+              <FaClock className="mr-2" />
+              {Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}
+            </span>
+          </div>
+          <button
+            onClick={handleToggleTimer}
+            className={`p-2 rounded-full ${timerPaused ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'} transition duration-300`}
+          >
+            {timerPaused ? <FaPlay className="text-white" /> : <FaPause className="text-white" />}
+          </button>
         </div>
-        <button
-          onClick={handleToggleTimer}
-          className={`p-2 rounded-full ${timerPaused ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'} transition duration-300`}
-        >
-          {timerPaused ? <FaPlay className="text-white" /> : <FaPause className="text-white" />}
-        </button>
-      </div>
 
-      <motion.div
-        key={currentQuestionIndex}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="bg-white rounded-lg shadow-md p-6 mb-6"
-      >
-        <h2 className="text-xl font-semibold mb-4">{renderHTML(currentQuestion.question)}</h2>
-        {currentQuestion.image && (
-          <img src={currentQuestion.image} alt="Question visual" className="mb-4 max-w-full h-auto" />
-        )}
-        <div className="space-y-2">
-          {Object.entries(currentQuestion.option).filter(([key, value]) => value !== null).map(([key, value]) => (
-            <label key={key} className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="radio"
-                name={`question-${currentQuestionIndex}`}
-                value={key}
-                onChange={() => handleAnswer(key)}
-                checked={userAnswers[currentQuestionIndex] === key}
-                disabled={timerPaused}
-                className="form-radio text-indigo-600 focus:ring-indigo-500"
-              />
-              <span>{renderHTML(value)}</span>
-            </label>
+        <motion.div
+          key={currentQuestionIndex}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="bg-white rounded-lg shadow-md p-6 mb-6"
+        >
+          <h2 className="text-xl font-semibold mb-4">{renderHTML(currentQuestion.question)}</h2>
+          {currentQuestion.image && (
+            <img src={currentQuestion.image} alt="Question visual" className="mb-4 max-w-full h-auto" />
+          )}
+          <div className="space-y-2">
+            {Object.entries(currentQuestion.option).filter(([key, value]) => value !== null).map(([key, value]) => (
+              <label key={key} className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name={`question-${currentQuestionIndex}`}
+                  value={key}
+                  onChange={() => handleAnswer(key)}
+                  checked={userAnswers[currentQuestionIndex] === key}
+                  disabled={timerPaused}
+                  className="form-radio text-indigo-600 focus:ring-indigo-500"
+                />
+                <span>{renderHTML(value)}</span>
+              </label>
+            ))}
+          </div>
+        </motion.div>
+
+        <div className="flex justify-between mb-6">
+          <button
+            onClick={handlePrevQuestion}
+            disabled={currentQuestionIndex === 0}
+            className="bg-indigo-500 text-white py-2 px-4 rounded-lg hover:bg-indigo-600 transition duration-300 disabled:opacity-50"
+          >
+            Previous
+          </button>
+          <button
+            onClick={handleNextQuestion}
+            disabled={currentQuestionIndex === questions.length - 1}
+            className="bg-indigo-500 text-white py-2 px-4 rounded-lg hover:bg-indigo-600 transition duration-300 disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
+
+        <div className="flex flex-wrap justify-center gap-2 mb-6">
+          {questions.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => handleJumpToQuestion(index)}
+              className={`w-8 h-8 rounded-full text-sm font-medium ${
+                userAnswers[index]
+                  ? 'bg-green-500 text-white'
+                  : index === currentQuestionIndex
+                  ? 'bg-indigo-500 text-white'
+                  : 'bg-gray-200 text-gray-700'
+              }`}
+            >
+              {index + 1}
+            </button>
           ))}
         </div>
-      </motion.div>
-
-      <div className="flex justify-between mb-6">
         <button
-          onClick={handlePrevQuestion}
-          disabled={currentQuestionIndex === 0}
-          className="bg-indigo-500 text-white py-2 px-4 rounded-lg hover:bg-indigo-600 transition duration-300 disabled:opacity-50"
+          onClick={handleQuizSubmit}
+          className="w-full bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition duration-300"
         >
-          Previous
-        </button>
-        <button
-          onClick={handleNextQuestion}
-          disabled={currentQuestionIndex === questions.length - 1}
-          className="bg-indigo-500 text-white py-2 px-4 rounded-lg hover:bg-indigo-600 transition duration-300 disabled:opacity-50"
-        >
-          Next
+          Submit Quiz
         </button>
       </div>
-
-      <div className="flex flex-wrap justify-center gap-2 mb-6">
-        {questions.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => handleJumpToQuestion(index)}
-            className={`w-8 h-8 rounded-full text-sm font-medium ${
-              userAnswers[index]
-                ? 'bg-green-500 text-white'
-                : index === currentQuestionIndex
-                ? 'bg-indigo-500 text-white'
-                : 'bg-gray-200 text-gray-700'
-            }`}
-          >
-            {index + 1}
-          </button>
-        ))}
-      </div>
-      <button
-        onClick={handleShare}
-        className="bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition duration-300 flex items-center"
-      >
-        <FaShareAlt className="mr-2" /> Share
-      </button>
-      <button
-        onClick={handleSave}
-        className="bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition duration-300 flex items-center"
-      >
-        <FaSave className="mr-2" /> Save
-      </button>
-
-      <button
-        onClick={handleQuizSubmit}
-        className="w-full bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition duration-300"
-      >
-        Submit Quiz
-      </button>
     </div>
   );
 };
