@@ -1,94 +1,28 @@
 import React, { useState, useEffect } from 'react';
-import { FaFilter, FaCheck, FaTimes, FaRedo, FaHome } from 'react-icons/fa';
+import { FaCheck, FaTimes, FaHome, FaUser } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { jwtDecode } from 'jwt-decode';
 import Navbar from '../components/Navbar';
 
-const QuestionBank = () => {
+const TrialMode = ({ user, setUser }) => {
   const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState({});
   const [filters, setFilters] = useState({ subject: 'english', type: '', year: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [user, setUser] = useState(null);
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchUserInfo();
-    const intervalId = setInterval(checkTokenExpiration, 60000);
-    return () => clearInterval(intervalId);
-  }, []);
-
-  const checkTokenExpiration = async () => {
-    const accessToken = localStorage.getItem('access_token');
-    if (accessToken && checkIfTokenExpired(accessToken)) {
-      await refreshAccessToken();
+    if (user.is_subscribed) {
+      navigate('/questionbank');
+    } else if (user.trial_complete) {
+      setShowSubscriptionModal(true);
     }
-  };
-
-  const fetchUserInfo = async () => {
-    try {
-      let accessToken = localStorage.getItem('access_token');
-      if (!accessToken) {
-        console.error('No access token found');
-        navigate('/auth');
-        return;
-      }
-
-      if (checkIfTokenExpired(accessToken)) {
-        accessToken = await refreshAccessToken();
-        if (!accessToken) {
-          console.error('Unable to refresh access token');
-          navigate('/auth');
-          return;
-        }
-      }
-
-      const response = await axios.get('http://localhost:8000/api/user', {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        withCredentials: true,
-      });
-
-      setUser(response.data);
-      if (response.data.is_subscribed) {
-        navigate('/questionbank');
-      } else if (response.data.trial_complete) {
-        setShowSubscriptionModal(true);
-      }
-    } catch (error) {
-      console.error('Error fetching user info:', error);
-      navigate('/auth');
-    }
-  };
-
-  const checkIfTokenExpired = (token) => {
-    const decodedToken = jwtDecode(token);
-    const currentTime = Date.now() / 1000;
-    return decodedToken.exp < currentTime;
-  };
-
-  const refreshAccessToken = async () => {
-    try {
-      const response = await axios.post('http://localhost:8000/api/refresh', {}, {
-        withCredentials: true,
-      });
-
-      const newAccessToken = response.data.token;
-      localStorage.setItem('access_token', newAccessToken);
-      return newAccessToken;
-    } catch (error) {
-      console.error('Error refreshing access token:', error);
-      navigate('/auth');
-      return null;
-    }
-  };
+  }, [user, navigate]);
 
   const fetchQuestions = async () => {
     if (showSubscriptionModal || user.trial_complete || user.trial_calls <= 0) {
@@ -115,26 +49,44 @@ const QuestionBank = () => {
       });
       
       setQuestions(Array.isArray(response.data.data) ? response.data.data : [response.data.data]);
+      setCurrentQuestionIndex(0);
+      setUserAnswers({});
       
       // Update trial calls
-      const updatedUser = { ...user, trial_calls: user.trial_calls - 1 };
-      setUser(updatedUser);
+      const updatedTrialCalls = user.trial_calls - 1;
       
       // Update backend
-      await axios.patch('http://localhost:8000/api/user', { trial_calls: updatedUser.trial_calls }, {
+      const updateResponse = await axios.patch('http://localhost:8000/api/user', { trial_calls: updatedTrialCalls }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
         withCredentials: true,
       });
 
-      if (updatedUser.trial_calls <= 0) {
+      // Update local user state
+      setUser(prevUser => ({
+        ...prevUser,
+        trial_calls: updatedTrialCalls
+      }));
+
+      if (updatedTrialCalls <= 0) {
         await axios.patch('http://localhost:8000/api/user', { trial_complete: true }, {
           headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
           withCredentials: true,
         });
+        setUser(prevUser => ({
+          ...prevUser,
+          trial_complete: true
+        }));
         setShowSubscriptionModal(true);
       }
     } catch (err) {
-      setError('Failed to fetch questions. Please try again.');
+      console.error('Error fetching questions:', err);
+      if (err.response && err.response.status === 401) {
+        setError('Authentication failed. Please log in again.');
+        // Optionally, redirect to login page or refresh token
+        navigate('/auth');
+      } else {
+        setError('Failed to fetch questions. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -147,8 +99,6 @@ const QuestionBank = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    setCurrentQuestionIndex(0);
-    setUserAnswers({});
     fetchQuestions();
   };
 
@@ -158,13 +108,6 @@ const QuestionBank = () => {
       ...prevAnswers,
       [currentQuestionIndex]: selectedAnswer
     }));
-  };
-
-  const handleReset = () => {
-    if (showSubscriptionModal) return;
-    setCurrentQuestionIndex(0);
-    setUserAnswers({});
-    fetchQuestions();
   };
 
   const TermsModal = () => (
@@ -202,10 +145,12 @@ const QuestionBank = () => {
         <h2 className="text-2xl font-bold mb-4">Trial Period Ended</h2>
         <p className="mb-4">You've reached the limit of your trial. Subscribe to our premium version to enjoy:</p>
         <ul className="list-disc pl-5 mb-4">
-          <li>Unlimited access to questions</li>
-          <li>Advanced analytics</li>
-          <li>Personalized study plans</li>
-          <li>Ad-free experience</li>
+          <li>Unlimited Access to Questions</li>
+          <li>All Available Subjects</li>
+          <li>Personalized CBT Settings</li>
+          <li>CBT Timer</li>
+          <li>Download Results as PDF</li>
+          <li>Ad-free Experience</li>
         </ul>
         <div className="flex justify-between">
           <button
@@ -225,7 +170,32 @@ const QuestionBank = () => {
     </div>
   );
 
-  if (loading) return <div className="text-center mt-8">Loading questions...</div>;
+  const UserInfoCard = () => (
+    <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg shadow-lg p-6 mb-6 text-white">
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex">
+          <FaUser className="text-4xl mr-4" />
+          <span>
+            <h2 className="text-2xl font-bold">{user.first_name} {user.last_name}</h2>
+            <p className="text-indigo-200">Trial User</p>
+          </span>
+        </div>
+        <div className="text-right">
+          <p className="text-lg font-semibold">Trial Status:</p>
+          <p className="text-xl font-bold">{user.trial_complete ? 'Completed' : 'Active'}</p>
+        </div>
+      </div>
+      <div className="flex justify-between items-center">
+        <div>
+          <p className="text-lg font-semibold">Remaining Trial Questions:</p>
+          <p className="text-3xl font-bold">{user.trial_calls}</p>
+        </div>
+        
+      </div>
+    </div>
+  );
+
+  if (loading) return <div className="text-center mt-8">Loading question...</div>;
   if (error) return <div className="text-center mt-8 text-red-500">{error}</div>;
 
   return (
@@ -234,11 +204,10 @@ const QuestionBank = () => {
       <div className="container mx-auto px-4 bg-gray-100 min-h-screen py-8">
         <h1 className="text-3xl font-bold text-center mb-8 text-indigo-600">Trial Mode</h1>
         
+        <UserInfoCard />
+        
         {!showSubscriptionModal && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <p className="text-lg font-semibold mb-4">
-              Remaining API calls: {user ? user.trial_calls : 'Loading...'}
-            </p>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="flex flex-wrap -mx-2">
                 <div className="px-2 w-full sm:w-1/3">
@@ -288,21 +257,16 @@ const QuestionBank = () => {
                 <button
                   type="submit"
                   className="bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-300"
+                  disabled={loading}
                 >
-                  Get Question
-                </button>
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="bg-gray-300 text-gray-800 py-2 px-4 rounded-lg hover:bg-gray-400 transition duration-300"
-                >
-                  Reset
+                  {loading ? 'Loading...' : 'Get Question'}
                 </button>
                 <button
                   type="button"
                   onClick={() => navigate('/')}
-                  className="bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition duration-300"
+                  className="flex items-center bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition duration-300"
                 >
+                  <FaHome className="mr-2 text-lg" />
                   Back to Home
                 </button>
               </div>
@@ -318,7 +282,7 @@ const QuestionBank = () => {
             transition={{ duration: 0.5 }}
             className="bg-white rounded-lg shadow-md p-6 mb-6"
           >
-            <h2 className="text-xl font-semibold mb-4">{questions[currentQuestionIndex].question}</h2>
+            <h2 className="text-xl font-semibold mb-4" dangerouslySetInnerHTML={{ __html: questions[currentQuestionIndex].question }} />
             {questions[currentQuestionIndex].image && (
               <img src={questions[currentQuestionIndex].image} alt="Question visual" className="mb-4 max-w-full h-auto" />
             )}
@@ -333,7 +297,7 @@ const QuestionBank = () => {
                     checked={userAnswers[currentQuestionIndex] === key}
                     className="form-radio text-indigo-600 focus:ring-indigo-500"
                   />
-                  <span>{value}</span>
+                  <span dangerouslySetInnerHTML={{ __html: value }} />
                 </label>
               ))}
             </div>
@@ -351,9 +315,13 @@ const QuestionBank = () => {
         
         {showTermsModal && <TermsModal />}
         {showSubscriptionModal && <SubscriptionModal />}
+
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6 h-20 w-full">
+        <span>Ad Location</span>
+      </div>
       </div>
     </div>
   );
 };
 
-export default QuestionBank;
+export default TrialMode;

@@ -8,6 +8,7 @@ import AuthPage from './pages/AuthPage';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import TrialMode from './pages/TrialPage';
+import Subscribe from './pages/SubscribePage';
 
 import './App.css';
 
@@ -26,8 +27,23 @@ const App = () => {
             </ProtectedRoute>
           } 
         />
-        <Route path="/trial" element={<TrialMode />} />
+        <Route 
+          path="/trial" 
+          element={
+            <ProtectedRoute>
+              <TrialMode />
+            </ProtectedRoute>
+          } 
+        />
         <Route path="/about" element={<AboutPage />} />
+        <Route 
+          path="/subscribe" 
+          element={
+            <ProtectedRoute>
+              <Subscribe />
+            </ProtectedRoute>
+          } 
+        />
         <Route 
           path="/auth" 
           element={

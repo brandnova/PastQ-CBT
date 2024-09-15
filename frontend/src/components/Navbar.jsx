@@ -29,11 +29,29 @@ const Navbar = () => {
       await axios.post('http://localhost:8000/api/logout', {}, {
         withCredentials: true
       });
+      
+      // Remove access token from localStorage
       localStorage.removeItem('access_token');
+      
+      // Clear any other auth-related data from localStorage if necessary
+      // For example:
+      localStorage.removeItem('user_data');
+      
+      // Update authentication state
+      setIsAuthenticated(false);
+      
+      // Dispatch a custom event to notify other components about the logout
+      window.dispatchEvent(new Event('logout'));
+      
+      // Redirect to the auth page
       navigate('/auth');
     } catch (error) {
       console.error('Error during logout:', error);
-      throw error;
+      // Even if the server request fails, we should still clear local data
+      localStorage.removeItem('access_token');
+      setIsAuthenticated(false);
+      window.dispatchEvent(new Event('logout'));
+      navigate('/auth');
     }
   };
 
