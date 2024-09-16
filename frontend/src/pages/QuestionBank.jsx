@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { FaPlay, FaPause, FaClock, FaRedo, FaHome, FaSave } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { BookOpen, GraduationCap, Lightbulb, PenTool, Brain } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import Logo from '../assets/qbank.svg';
 import Navbar from '../components/Navbar';
 import UserInfoCard from '../components/UserInfoCard';
 import jsPDF from 'jspdf';
@@ -131,13 +133,40 @@ const QBankApp = ({ user }) => {
   const generatePDF = () => {
     const input = document.getElementById('resultSection');
     
+    // Get the full dimensions of the element, including content not visible on screen
+    const fullHeight = input.scrollHeight;
+    const fullWidth = input.scrollWidth;
+  
+    // Set up html2canvas options to capture full content
+    const html2canvasOptions = {
+      height: fullHeight,
+      width: fullWidth,
+      windowHeight: fullHeight,
+      windowWidth: fullWidth,
+      scrollY: -window.scrollY,
+      scrollX: -window.scrollX
+    };
+  
     // Convert the HTML content into canvas
-    html2canvas(input).then((canvas) => {
+    html2canvas(input, html2canvasOptions).then((canvas) => {
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF();
+      const pdf = new jsPDF({
+        orientation: fullWidth > fullHeight ? 'landscape' : 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
       
-      // Adding the image to the PDF (width: 210mm, height: auto)
-      pdf.addImage(imgData, 'PNG', 0, 0, 210, canvas.height * 210 / canvas.width);
+      // Calculate PDF dimensions
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = fullWidth;
+      const imgHeight = fullHeight;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      
+      // Adding the image to the PDF (centered, maintaining aspect ratio)
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = (pdfHeight - imgHeight * ratio) / 2;
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
       
       // Save the PDF
       pdf.save("quiz-result.pdf");
@@ -267,6 +296,12 @@ const QBankApp = ({ user }) => {
       <div className=" bg-gray-100 pb-4">
           <Navbar />
           <div id="resultSection" className="mb-4 p-4 min-h-screen">
+          <div className="flex items-center justify-center">
+            <Link to="/" className="flex-shrink-0 flex items-center">
+              <img src={Logo} alt="Logo" className="h-8 w-auto" />
+              <span className="ml-2 text-xl font-semibold text-gray-800">Q-Bank</span>
+            </Link>
+          </div>
           <UserInfoCard user={user} quizSettings={quizSettings} quizCompleted={quizCompleted} />
           <div className="bg-white rounded-lg shadow-md p-6 m-6">
             <div className="justify-between mb-2">

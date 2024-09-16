@@ -26,7 +26,7 @@ const AboutPage = () => {
         <p className="mb-4"> This app was developed by <a href="https://github.com/brandnova/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline hover:text-blue-700">Ijeoma Jahsway</a> (Mr. Nova), a dedicated web developer passionate about crafting engaging, accessible, and user-friendly web applications. </p> 
         <p className="mb-4"> With a strong commitment to solving real-world challenges through code, and striving to create solutions that make meaningful impact. </p> 
         <p className="my-4"> If you’ve found value in using this app, consider showing your support by starring the project on GitHub: </p> 
-        <a href="https://github.com/brandnova/numbers-gg" target="_blank" rel="noopener noreferrer" className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded inline-block items-center" > <FaStar className="inline mb-1 text-yellow-300" /> Star on GitHub </a> 
+        <a href="https://github.com/brandnova/PastQ-CBT" target="_blank" rel="noopener noreferrer" className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded inline-block items-center" > <FaStar className="inline mb-1 text-yellow-300" /> Star on GitHub </a> 
 
         <p className="my-4"> You can also connect with, or follow Mr. Nova through the following channels: </p> 
         <ul className="list-disc pl-6"> 

@@ -26,7 +26,7 @@ const Navbar = () => {
 
   const logout = async () => {
     try {
-      await axios.post('http://localhost:8000/api/logout', {}, {
+      await axios.post('https://qbank.coursearena.com.ng/api/logout', {}, {
         withCredentials: true
       });
       
@@ -43,6 +43,7 @@ const Navbar = () => {
       // Dispatch a custom event to notify other components about the logout
       window.dispatchEvent(new Event('logout'));
       
+      
       // Redirect to the auth page
       navigate('/auth');
     } catch (error) {
@@ -51,7 +52,7 @@ const Navbar = () => {
       localStorage.removeItem('access_token');
       setIsAuthenticated(false);
       window.dispatchEvent(new Event('logout'));
-      navigate('/auth');
+      window.location.href = '/auth';
     }
   };
 

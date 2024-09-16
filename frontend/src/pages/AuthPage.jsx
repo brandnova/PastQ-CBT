@@ -52,7 +52,7 @@ const AuthPage = () => {
   
     try {
       const response = await axios.post(
-        `http://localhost:8000/api/${isLogin ? 'login' : 'register'}`,
+        `https://qbank.coursearena.com.ng/api/${isLogin ? 'login' : 'register'}`,
         isLogin
           ? { email: formData.email, password: formData.password }
           : { 

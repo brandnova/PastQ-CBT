@@ -6,9 +6,11 @@ const Subscribe = ({ user }) => {
   const navigate = useNavigate();
 
   const handleSubscribe = () => {
-    // Implement your subscription logic here
-    console.log('Subscribe button clicked');
-    // For example, redirect to a payment gateway or show a payment modal
+    // Paystack payment page URL
+    const paystackPaymentPageURL = 'https://paystack.com/pay/qbankpremium'; 
+
+    // Redirect to Paystack payment page
+    window.location.href = paystackPaymentPageURL;
   };
 
   return (

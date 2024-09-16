@@ -33,6 +33,7 @@ class User(AbstractUser):
     password = models.CharField(max_length=255)
     username = None  
     is_subscribed = models.BooleanField(default=False)
+    payment_reference = models.CharField(max_length=100, null=True, blank=True) 
     trial_calls = models.PositiveSmallIntegerField(default=10)
     trial_complete = models.BooleanField(default=False)
 
@@ -45,7 +46,7 @@ class User(AbstractUser):
         self.username = self.email
         super(User, self).save(*args, **kwargs)
 
-    def __str__(self):
+    def _str_(self):
         return self.first_name + ' ' + self.last_name
     
 

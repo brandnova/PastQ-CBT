@@ -12,7 +12,7 @@ const ForgotPassword = () => {
     setError('');
   
     try {
-      const response = await axios.post('http://localhost:8000/api/forgot', { email });
+      const response = await axios.post('https://qbank.coursearena.com.ng/api/forgot', { email });
       setMessage(response.data.message);
     } catch (err) {
       setError(err.response?.data?.message || 'An error occurred. Please try again.');
