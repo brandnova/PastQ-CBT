@@ -9,6 +9,7 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import TrialMode from './pages/TrialPage';
 import Subscribe from './pages/SubscribePage';
+import PaymentRedirectHandler from './pages/PaymentRedirectHandler';
 
 import './App.css';
 
@@ -52,6 +53,13 @@ const App = () => {
         />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset/:token" element={<ResetPassword />} />
+        <Route 
+          path="/payment-redirect" 
+          element={
+            <ProtectedRoute>
+              <PaymentRedirectHandler />
+            </ProtectedRoute>
+          } />
       </Routes>
     </Router>
   );

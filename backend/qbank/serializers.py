@@ -4,7 +4,7 @@ from .models import User, GlobalSettings
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'first_name', 'last_name', 'email', 'password', 'is_subscribed', 'trial_calls', 'trial_complete']
+        fields = ['id', 'first_name', 'last_name', 'email', 'password', 'is_subscribed', 'payment_reference', 'trial_calls', 'trial_complete']
         extra_kwargs = {
             'password': {'write_only': True},  # Password is write-only (not returned in responses)
             'email': {'required': True}  # Ensure email is always required

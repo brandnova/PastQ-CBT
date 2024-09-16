@@ -53,6 +53,15 @@ CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:3000",
+#     "cbt.coursearena.com.ng",
+#     "brandnova.github.io",
+# ]
+
+
+
+
 # Add a user model if using a custom one
 AUTH_USER_MODEL = 'qbank.User'
 

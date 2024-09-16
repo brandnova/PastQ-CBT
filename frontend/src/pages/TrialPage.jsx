@@ -56,7 +56,7 @@ const TrialMode = ({ user, setUser }) => {
       const updatedTrialCalls = user.trial_calls - 1;
       
       // Update backend
-      const updateResponse = await axios.patch('http://localhost:8000/api/user', { trial_calls: updatedTrialCalls }, {
+      const updateResponse = await axios.patch('https://qbank.coursearena.com.ng/api/user', { trial_calls: updatedTrialCalls }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
         withCredentials: true,
       });
@@ -68,7 +68,7 @@ const TrialMode = ({ user, setUser }) => {
       }));
 
       if (updatedTrialCalls <= 0) {
-        await axios.patch('http://localhost:8000/api/user', { trial_complete: true }, {
+        await axios.patch('https://qbank.coursearena.com.ng/api/user', { trial_complete: true }, {
           headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
           withCredentials: true,
         });

@@ -1,3 +1,4 @@
+# import os
 import datetime
 import random
 import string
@@ -10,6 +11,7 @@ from rest_framework import exceptions, status
 from .authentication import JWTAuthentication, create_refresh_token, create_access_token, decode_refresh_token
 from .serializers import UserSerializer, GlobalSettingsSerializer
 from .models import User, UserToken, Reset, GlobalSettings
+from backend.settings import PAYSTACK_SECRET_KEY
 from django.core.mail import send_mail
 
 
@@ -202,7 +204,7 @@ class ResetAPIView(APIView):
 class PaystackRedirectView(APIView):
     """
     Handles the Paystack redirect after payment and verifies the transaction.
-    Updates user's subscription status if the payment is successful.
+    Updates user's subscription status and payment reference if the payment is successful.
     """
     def get(self, request):
         # Check if the referrer is Paystack
@@ -221,30 +223,36 @@ class PaystackRedirectView(APIView):
             return Response({'error': 'No payment reference provided'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Verify payment using Paystack API
-        verification_response = self.verify_payment(payment_reference)
+        verification_status = self.verify_payment(payment_reference)
 
-        if verification_response['status'] and verification_response['data']['status'] == 'success':
-            # Payment was successful, update user's subscription status
+        if verification_status:
+            # Payment was successful, update user's subscription status and payment reference
             user.is_subscribed = True
+            user.payment_reference = payment_reference
             user.save()
 
             # Redirect to your frontend homepage or success page
-            return redirect('http://localhost:5173')
+            return redirect(f'https://brandnova.github.io/PastQ-CBT/#/payment-redirect?status=success&reference={payment_reference}')
         else:
             # Payment failed or could not be verified
-            return Response({'error': 'Payment verification failed'}, status=status.HTTP_400_BAD_REQUEST)
+            return redirect(f'https://brandnova.github.io/PastQ-CBT/#/payment-redirect?status=failed&reference={payment_reference}')
 
-    def verify_payment(self, payment_reference):
-        """
-        Verifies the payment with Paystack using the transaction/verify API.
-        """
+    def verify_payment(self, reference):
+        """Verify payment using Paystack API"""
+        url = f"https://api.paystack.co/transaction/verify/{reference}"
+        PAYSTACK_TEST_SECRET_KEY = PAYSTACK_SECRET_KEY
         headers = {
-            'Authorization': f'Bearer {settings.PAYSTACK_SECRET_KEY}',  # Secret key from settings
+            "Authorization": f"Bearer {PAYSTACK_TEST_SECRET_KEY}",
+            "Content-Type": "application/json"
         }
-        url = f'https://api.paystack.co/transaction/verify/{payment_reference}'
         response = requests.get(url, headers=headers)
-        return response.json()
-    
+        
+        if response.status_code == 200:
+            response_data = response.json()
+            return response_data['status'] and response_data['data']['status'] == 'success'
+        return False
+        
+        
 
 class GlobalSettingsView(APIView):
     """

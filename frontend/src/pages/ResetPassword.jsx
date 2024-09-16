@@ -21,7 +21,7 @@ const ResetPassword = () => {
     }
   
     try {
-      const response = await axios.post('http://localhost:8000/api/reset', {
+      const response = await axios.post('https://qbank.coursearena.com.ng/api/reset', {
         token,
         password,
         password_confirm: passwordConfirm

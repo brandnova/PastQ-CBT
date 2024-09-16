@@ -10,7 +10,7 @@ export const GlobalSettingsProvider = ({ children }) => {
 
     const fetchSettings = async () => {
         try {
-            const response = await axios.get('http://localhost:8000/api/globalsettings');
+            const response = await axios.get('https://qbank.coursearena.com.ng/api/globalsettings');
             setSettings(response.data);
             setError(null);
         } catch (error) {
