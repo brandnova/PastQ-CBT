@@ -24,7 +24,7 @@ const ResetPassword = () => {
     }
   
     try {
-      const response = await axios.post('https://qbank.coursearena.com.ng/api/reset', {
+      const response = await axios.post('https://qbank.backend.kumotechs.com/api/reset', {
         token,
         password,
         password_confirm: passwordConfirm

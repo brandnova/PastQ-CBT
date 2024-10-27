@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './components/HOC';
 import LandingPage from './pages/LandingPage';
 import QuestionBank from './pages/QuestionBank';
@@ -11,7 +11,6 @@ import TrialMode from './pages/TrialPage';
 import Subscribe from './pages/SubscribePage';
 import PaymentRedirectHandler from './pages/PaymentRedirectHandler';
 
-import './App.css';
 
 const App = () => {
   const isAuthenticated = !!localStorage.getItem('access_token');
