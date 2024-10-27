@@ -50,7 +50,7 @@ const ProtectedRoute = ({ children, requireSubscription = false }) => {
 
   const refreshAccessToken = async () => {
     try {
-      const response = await axios.post('https://qbank.coursearena.com.ng/api/refresh', {}, {
+      const response = await axios.post('https://qbank.backend.kumotechs.com/api/refresh', {}, {
         withCredentials: true,
       });
       const newAccessToken = response.data.token;
@@ -68,7 +68,7 @@ const ProtectedRoute = ({ children, requireSubscription = false }) => {
     }
 
     try {
-      const response = await axios.get('https://qbank.coursearena.com.ng/api/user', {
+      const response = await axios.get('https://qbank.backend.kumotechs.com/api/user', {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,
       });
@@ -80,7 +80,7 @@ const ProtectedRoute = ({ children, requireSubscription = false }) => {
         await refreshAccessToken();
         // Retry fetching user info with new token
         const newToken = localStorage.getItem('access_token');
-        const retryResponse = await axios.get('https://qbank.coursearena.com.ng/api/user', {
+        const retryResponse = await axios.get('https://qbank.backend.kumotechs.com/api/user', {
           headers: { Authorization: `Bearer ${newToken}` },
           withCredentials: true,
         });

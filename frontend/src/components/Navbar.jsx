@@ -26,7 +26,7 @@ const Navbar = () => {
 
   const logout = async () => {
     try {
-      await axios.post('https://qbank.coursearena.com.ng/api/logout', {}, {
+      await axios.post('https://qbank.backend.kumotechs.com/api/logout', {}, {
         withCredentials: true
       });
       
