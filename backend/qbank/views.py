@@ -1,19 +1,23 @@
-# import os
 import datetime
 import random
 import string
 import requests
+import hmac
+import hashlib
+import json
+import logging
+from decimal import Decimal
 from django.conf import settings
 from django.shortcuts import redirect
+from django.urls import reverse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import exceptions, status
 from .authentication import JWTAuthentication, create_refresh_token, create_access_token, decode_refresh_token
 from .serializers import UserSerializer, GlobalSettingsSerializer
-from .models import User, UserToken, Reset, GlobalSettings
+from .models import User, UserToken, Reset, GlobalSettings, PaymentTransaction
 from backend.settings import PAYSTACK_SECRET_KEY
 from django.core.mail import send_mail
-
 
 class RegisterAPIView(APIView):
     def post(self, request):
@@ -136,59 +140,75 @@ class RefreshAPIView(APIView):
                 "error": "An error occurred while refreshing the token"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
+
 class LogoutAPIView(APIView):
     def post(self, request):
         refresh_token = request.COOKIES.get('refresh_token')
-        UserToken.objects.filter(token = refresh_token).delete()
+        UserToken.objects.filter(token=refresh_token).delete()
 
         response = Response()
         response.delete_cookie(key='refresh_token')
         response.data = {
             "message": "Logged out successfully"
-    
         }
         return response
 
 
 class ForgotAPIView(APIView):
     def post(self, request):
-        email = request.data.get('email')
-        token = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(10))
+        try:
+            email = request.data.get('email')
+            token = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(10))
 
-        Reset.objects.create(
-            email=email,
-            token=token
-        )
+            # Get global settings
+            global_settings = GlobalSettings.objects.first()
+            if not global_settings:
+                return Response(
+                    {"error": "System configuration not found"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
-        url = f'http://localhost:5173/PastQ-CBT/#/reset/{token}'
+            Reset.objects.create(
+                email=email,
+                token=token
+            )
 
-        send_mail(
-            subject='Reset your password',
-            message='',
-            html_message=f'Click <a href="{url}">here</a> to reset your password',
-            from_email='from@eg.com',
-            recipient_list=[email],
-            fail_silently=False,
-        )
+            # Construct reset URL using frontend base URL from global settings
+            reset_url = f"{global_settings.frontend_base_url.rstrip('/')}/reset/{token}"
 
-        return Response({
-            "message": "Reset password email sent successfully. Please check your inbox."
-        })
-    
+            send_mail(
+                subject='Reset your password',
+                message='',
+                html_message=f'Click <a href="{reset_url}">here</a> to reset your password',
+                from_email=global_settings.contact_email,  
+                recipient_list=[email],
+                fail_silently=False,
+            )
+
+            return Response({
+                "message": "Reset password email sent successfully. Please check your inbox."
+            })
+        except Exception as e:
+            logger.exception("Error in password reset email sending")
+            return Response(
+                {"error": "Failed to send reset email"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 class ResetAPIView(APIView):
     def post(self, request):
         data = request.data
 
         if data['password'] != data['password_confirm']:
-            raise exceptions.APIException('Paswords do not match')
+            raise exceptions.APIException('Passwords do not match')
         
-        reset_password = Reset.objects.filter(token = data['token']).first()
+        reset_password = Reset.objects.filter(token=data['token']).first()
 
         if not reset_password:
             raise exceptions.APIException('Invalid link!')
         
-        user = User.objects.filter(email = reset_password.email).first()
+        user = User.objects.filter(email=reset_password.email).first()
 
         if not user:
             raise exceptions.APIException('User not found')
@@ -199,60 +219,7 @@ class ResetAPIView(APIView):
         return Response({
             "message": "Password reset successfully"
         })
-    
 
-class PaystackRedirectView(APIView):
-    """
-    Handles the Paystack redirect after payment and verifies the transaction.
-    Updates user's subscription status and payment reference if the payment is successful.
-    """
-    def get(self, request):
-        # Check if the referrer is Paystack
-        referer = request.META.get('HTTP_REFERER', '')
-        if not referer.startswith('https://paystack.com'):
-            return Response({'error': 'Unauthorized access'}, status=status.HTTP_403_FORBIDDEN)
-
-        # Ensure user is authenticated
-        user = request.user
-        if not user.is_authenticated:
-            return Response({'error': 'User not authenticated'}, status=status.HTTP_401_UNAUTHORIZED)
-
-        # Get the payment reference from the query string
-        payment_reference = request.GET.get('reference', None)
-        if not payment_reference:
-            return Response({'error': 'No payment reference provided'}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Verify payment using Paystack API
-        verification_status = self.verify_payment(payment_reference)
-
-        if verification_status:
-            # Payment was successful, update user's subscription status and payment reference
-            user.is_subscribed = True
-            user.payment_reference = payment_reference
-            user.save()
-
-            # Redirect to your frontend homepage or success page
-            return redirect(f'https://brandnova.github.io/PastQ-CBT/#/payment-redirect?status=success&reference={payment_reference}')
-        else:
-            # Payment failed or could not be verified
-            return redirect(f'https://brandnova.github.io/PastQ-CBT/#/payment-redirect?status=failed&reference={payment_reference}')
-
-    def verify_payment(self, reference):
-        """Verify payment using Paystack API"""
-        url = f"https://api.paystack.co/transaction/verify/{reference}"
-        PAYSTACK_TEST_SECRET_KEY = PAYSTACK_SECRET_KEY
-        headers = {
-            "Authorization": f"Bearer {PAYSTACK_TEST_SECRET_KEY}",
-            "Content-Type": "application/json"
-        }
-        response = requests.get(url, headers=headers)
-        
-        if response.status_code == 200:
-            response_data = response.json()
-            return response_data['status'] and response_data['data']['status'] == 'success'
-        return False
-        
-        
 
 class GlobalSettingsView(APIView):
     """
@@ -267,3 +234,230 @@ class GlobalSettingsView(APIView):
             return Response({"error": "Global settings not configured"}, status=status.HTTP_404_NOT_FOUND)
         except GlobalSettings.DoesNotExist:
             return Response({"error": "Global settings not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+logger = logging.getLogger(__name__)
+
+class PaymentInitializationView(APIView):
+    authentication_classes = [JWTAuthentication]
+
+    def post(self, request):
+        user = request.user
+        
+        if user.is_subscribed:
+            return Response(
+                {"error": "User is already subscribed"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            global_settings = GlobalSettings.objects.first()
+            if not global_settings:
+                return Response(
+                    {"error": "Subscription price not configured"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+            amount = int(global_settings.subscription_price * 100)  # Convert to kobo
+            reference = f"sub_{user.id}_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+            # Create payment transaction record
+            transaction = PaymentTransaction.objects.create(
+                user=user,
+                reference=reference,
+                amount=global_settings.subscription_price
+            )
+
+            # Build URLs for callbacks and webhooks
+            callback_url = f"{global_settings.backend_base_url.rstrip('/')}/api/payments/callback/"
+            webhook_url = f"{global_settings.backend_base_url.rstrip('/')}/api/payments/webhook/"
+
+            # Initialize payment with Paystack
+            url = "https://api.paystack.co/transaction/initialize"
+            headers = {
+                "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
+                "Content-Type": "application/json"
+            }
+            
+            payload = {
+                "email": user.email,
+                "amount": amount,
+                "reference": reference,
+                "callback_url": callback_url,
+                "webhook_url": webhook_url,
+                "metadata": {
+                    "user_id": user.id,
+                    "transaction_id": transaction.id,
+                    "custom_fields": [
+                        {
+                            "display_name": "User Email",
+                            "variable_name": "user_email",
+                            "value": user.email
+                        }
+                    ]
+                },
+                "channels": ["card", "bank", "ussd", "qr", "mobile_money", "bank_transfer"]
+            }
+
+            response = requests.post(url, headers=headers, json=payload)
+            response_data = response.json()
+            
+            if response.status_code == 200 and response_data["status"]:
+                transaction.payment_url = response_data["data"]["authorization_url"]
+                transaction.metadata.update({
+                    'access_code': response_data["data"]["access_code"],
+                    'initialization_response': response_data
+                })
+                transaction.save()
+                
+                return Response({
+                    "authorization_url": response_data["data"]["authorization_url"],
+                    "reference": reference,
+                    "access_code": response_data["data"]["access_code"]
+                })
+            
+            logger.error(f"Payment initialization failed for user {user.id}: {response_data}")
+            transaction.status = "failed"
+            transaction.metadata.update({'initialization_error': response_data})
+            transaction.save()
+            
+            return Response(
+                {"error": "Failed to initialize payment"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        except Exception as e:
+            logger.exception(f"Error in payment initialization for user {user.id}")
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class PaymentCallbackView(APIView):
+    """
+    Handles payment verification via callback (backup for webhook)
+    Authentication not required as this is called by Paystack
+    """
+    authentication_classes = []  # No authentication needed for callback
+
+    def get(self, request):
+        reference = request.GET.get('reference')
+        if not reference:
+            logger.warning("Received callback without reference")
+            return redirect(f"{GlobalSettings.objects.first().frontend_base_url}/payment-redirect?status=failed")
+
+        try:
+            transaction = PaymentTransaction.objects.select_related('user').get(reference=reference)
+            
+            if transaction.status != 'success':
+                verification_status = self.verify_payment(reference)
+
+                if verification_status:
+                    if not transaction.user.is_subscribed:
+                        transaction.user.is_subscribed = True
+                        transaction.user.payment_reference = reference
+                        transaction.user.save()
+
+                        transaction.status = 'success'
+                        transaction.metadata.update({
+                            'verification_method': 'callback',
+                            'verified_at': datetime.datetime.now().isoformat()
+                        })
+                        transaction.save()
+                        
+                        logger.info(f"Successfully verified payment via callback for user {transaction.user.id}")
+
+            status_param = 'success' if transaction.status == 'success' else 'failed'
+            return redirect(
+                f"{GlobalSettings.objects.first().frontend_base_url}/payment-redirect?status={status_param}&reference={reference}"
+            )
+
+        except PaymentTransaction.DoesNotExist:
+            logger.error(f"Transaction not found for reference: {reference}")
+            return redirect(
+                f"{GlobalSettings.objects.first().frontend_base_url}/payment-redirect?status=failed"
+            )
+        except Exception as e:
+            logger.exception("Error processing callback")
+            return redirect(
+                f"{GlobalSettings.objects.first().frontend_base_url}/payment-redirect?status=failed"
+            )
+
+    def verify_payment(self, reference):
+        """Verify payment status with Paystack"""
+        url = f"https://api.paystack.co/transaction/verify/{reference}"
+        headers = {
+            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        try:
+            response = requests.get(url, headers=headers)
+            if response.status_code == 200:
+                response_data = response.json()
+                return response_data['status'] and response_data['data']['status'] == 'success'
+        except Exception as e:
+            logger.exception(f"Error verifying payment for reference: {reference}")
+        return False
+
+
+class PaymentWebhookView(APIView):
+    """
+    Handles automatic payment verification via webhook
+    Authentication not required as this is called by Paystack
+    """
+    authentication_classes = []  # No authentication needed for webhook
+
+    def post(self, request):
+        try:
+            # Verify webhook signature
+            paystack_signature = request.META.get('HTTP_X_PAYSTACK_SIGNATURE')
+            if not paystack_signature:
+                logger.warning("Received webhook without Paystack signature")
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+
+            computed_signature = hmac.new(
+                settings.PAYSTACK_SECRET_KEY.encode('utf-8'),
+                request.body,
+                hashlib.sha512
+            ).hexdigest()
+
+            if paystack_signature != computed_signature:
+                logger.warning("Invalid webhook signature received")
+                return Response(status=status.HTTP_400_BAD_REQUEST)
+
+            payload = json.loads(request.body)
+            event = payload.get('event')
+            data = payload.get('data', {})
+            reference = data.get('reference')
+
+            logger.info(f"Received webhook event: {event} for reference: {reference}")
+
+            if event == 'charge.success':
+                transaction = PaymentTransaction.objects.select_related('user').get(reference=reference)
+                
+                transaction.status = 'success'
+                transaction.metadata.update({
+                    'paystack_response': data,
+                    'verification_method': 'webhook',
+                    'verified_at': datetime.datetime.now().isoformat()
+                })
+                transaction.save()
+
+                user = transaction.user
+                if not user.is_subscribed:
+                    user.is_subscribed = True
+                    user.payment_reference = reference
+                    user.save()
+                    
+                    logger.info(f"Successfully updated subscription status for user {user.id}")
+
+            return Response(status=status.HTTP_200_OK)
+
+        except PaymentTransaction.DoesNotExist:
+            logger.error(f"Transaction not found for reference: {reference}")
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.exception("Error processing webhook")
+            return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)

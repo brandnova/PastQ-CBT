@@ -29,4 +29,4 @@ You can also connect with or follow Mr. Nova through the following channels:
 
 - [Coder Nova Blog](https://cn.coursearena.com.ng) for updates and insights.
 - [LinkedIn](https://www.linkedin.com/in/ijeoma-jahsway/) to network professionally.
-- [Email](mailto:uchennamebijay@gmail.com) for any inquiries or feedback.
+- [Email](mailto:info@kumotechs.com) for any inquiries or feedback.

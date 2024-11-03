@@ -1,3 +1,4 @@
+// src/pages/PaymentRedirectHandler.jsx
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Alert, AlertDescription, AlertTitle } from '../components/alert';
@@ -10,7 +11,12 @@ const PaymentRedirectHandler = ({ user }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
+    // Parse hash parameters if they're in the URL hash
+    const params = new URLSearchParams(
+      window.location.hash.includes('?') 
+        ? window.location.hash.split('?')[1] 
+        : location.search
+    );
     const status = params.get('status');
     const reference = params.get('reference');
     setPaymentStatus(status);
@@ -26,8 +32,18 @@ const PaymentRedirectHandler = ({ user }) => {
     console.log('Contacting support...');
   };
 
-  const handleRetryPayment = () => {
-    window.location.href = 'https://paystack.com/pay/qbankpremium';
+  const handleRetryPayment = async () => {
+    try {
+      const response = await api.post('/payments/initialize/');
+      
+      if (response.data.authorization_url) {
+        window.location.href = response.data.authorization_url;
+      }
+    } catch (error) {
+      console.error('Failed to initialize payment:', error);
+      // Optionally set an error state if you want to show the error to the user
+      setError(error.response?.data?.error || 'Failed to initialize payment. Please try again.');
+    }
   };
 
   return (
@@ -35,21 +51,30 @@ const PaymentRedirectHandler = ({ user }) => {
       <div className="bg-white shadow-md rounded-lg p-6">
         {paymentStatus === 'success' ? (
           <Alert className="bg-green-100 border-green-400 text-green-700 mb-4">
-            <AlertTitle className="text-lg font-bold">Payment Successful</AlertTitle>
+            <AlertTitle className="text-lg font-bold">
+              Payment Successful
+            </AlertTitle>
             <AlertDescription>
-              <p className="mt-2">Thank you, {user.first_name} {user.last_name}! Your payment has been processed successfully.</p>
+              <p className="mt-2">
+                Thank you, {user?.first_name} {user?.last_name}! Your payment has been processed successfully.
+              </p>
               <p className="mt-2">Your subscription is now active.</p>
-              <p className="mt-2">Payment Reference: {paymentReference}</p>
+              {paymentReference && (
+                <p className="mt-2">Payment Reference: {paymentReference}</p>
+              )}
             </AlertDescription>
           </Alert>
         ) : (
           <Alert className="bg-red-100 border-red-400 text-red-700 mb-4">
             <AlertTitle className="text-lg font-bold">Payment Failed</AlertTitle>
             <AlertDescription>
-              <p className="mt-2">We couldn't process your payment. Please try again or contact support.</p>
+              <p className="mt-2">
+                We couldn't process your payment. Please try again or contact support.
+              </p>
             </AlertDescription>
           </Alert>
         )}
+        
         <div className="mt-6 space-y-4">
           <Button 
             onClick={handleReturnHome}
@@ -57,6 +82,7 @@ const PaymentRedirectHandler = ({ user }) => {
           >
             Return to Homepage
           </Button>
+          
           {paymentStatus === 'failed' && (
             <>
               <Button 
