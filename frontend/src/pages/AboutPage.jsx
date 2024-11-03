@@ -32,7 +32,7 @@ const AboutPage = () => {
         <ul className="list-disc pl-6"> 
             <li className="mb-2"> <a href="https://cn.coursearena.com.ng" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline hover:text-blue-700"> Coder Nova Blog </a> for updates and insights. </li> 
             <li className="mb-2"> <a href="https://www.linkedin.com/in/ijeoma-jahsway/" target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline hover:text-blue-700"> LinkedIn </a> to network professionally. </li> 
-            <li className="mb-2"> <a href="mailto:uchennamebijay@gmail.com" className="text-blue-500 hover:underline hover:text-blue-700"> Email </a> for any inquiries or feedback. </li> 
+            <li className="mb-2"> <a href="mailto:info@kumotechs.com" className="text-blue-500 hover:underline hover:text-blue-700"> Email </a> for any inquiries or feedback. </li> 
         </ul>
       </div>
     </div>

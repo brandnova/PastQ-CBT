@@ -1,5 +1,6 @@
 from django.contrib.auth.models import BaseUserManager, AbstractUser
 from django.db import models
+from django.core.validators import MinValueValidator
 
 # Define your custom UserManager here
 class UserManager(BaseUserManager):
@@ -68,14 +69,18 @@ class Reset(models.Model):
 class GlobalSettings(models.Model):
     backend_base_url = models.URLField(max_length=255, verbose_name="Backend Base URL")
     frontend_base_url = models.URLField(max_length=255, verbose_name="Frontend Base URL")
-    payment_page_url = models.URLField(max_length=255, verbose_name="Payment Page URL", null=True, blank=True)
-    
-    # Add other global settings as needed
+    subscription_price = models.DecimalField(  # Changed from payment_page_url
+        max_digits=10, 
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        verbose_name="Subscription Price",
+        help_text="Price in NGN",
+        null = True
+    )
     site_name = models.CharField(max_length=255, verbose_name="Site Name", default="My Website")
-    cbt_api_token = models.CharField(max_length=255, verbose_name= "CBT API Token", null=True, blank=True)
+    cbt_api_token = models.CharField(max_length=255, verbose_name="CBT API Token", null=True, blank=True)
     contact_email = models.EmailField(verbose_name="Contact Email", default="support@example.com")
-    
-    # Ensure only one instance of global settings exists
+
     def save(self, *args, **kwargs):
         if not self.pk and GlobalSettings.objects.exists():
             raise ValueError("Only one instance of GlobalSettings is allowed.")
@@ -87,3 +92,23 @@ class GlobalSettings(models.Model):
     class Meta:
         verbose_name = "Global Setting"
         verbose_name_plural = "Global Settings"
+
+
+class PaymentTransaction(models.Model):
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('success', 'Success'),
+        ('failed', 'Failed')
+    )
+
+    user = models.ForeignKey('User', on_delete=models.CASCADE)
+    reference = models.CharField(max_length=100, unique=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    payment_url = models.URLField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    def __str__(self):
+        return f"{self.user.email} - {self.reference} - {self.status}"
