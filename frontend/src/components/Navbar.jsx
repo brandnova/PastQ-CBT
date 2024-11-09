@@ -30,25 +30,13 @@ const Navbar = () => {
         withCredentials: true
       });
       
-      // Remove access token from localStorage
       localStorage.removeItem('access_token');
-      
-      // Clear any other auth-related data from localStorage if necessary
-      // For example:
       localStorage.removeItem('user_data');
-      
-      // Update authentication state
       setIsAuthenticated(false);
-      
-      // Dispatch a custom event to notify other components about the logout
       window.dispatchEvent(new Event('logout'));
-      
-      
-      // Redirect to the auth page
       navigate('/auth');
     } catch (error) {
       console.error('Error during logout:', error);
-      // Even if the server request fails, we should still clear local data
       localStorage.removeItem('access_token');
       setIsAuthenticated(false);
       window.dispatchEvent(new Event('logout'));
@@ -109,10 +97,13 @@ const NavItems = ({ isAuthenticated, logout, mobile = false, currentPath }) => {
   return (
     <>
       <Link to="/" className={linkClasses('/')}>Home</Link>
+      {isAuthenticated && <Link to="/subscribe" className={linkClasses('/subscribe')}>Subscribe</Link>}
       <Link to="/questionbank" className={linkClasses('/questionbank')}>CBT</Link>
       <Link to="/about" className={linkClasses('/about')}>About</Link>
       {isAuthenticated ? (
-        <button onClick={logout} className={logoutClasses}>Logout</button>
+        <>
+          <button onClick={logout} className={logoutClasses}>Logout</button>
+        </>
       ) : (
         <Link to="/auth" className={linkClasses('/auth')}>Get Started</Link>
       )}

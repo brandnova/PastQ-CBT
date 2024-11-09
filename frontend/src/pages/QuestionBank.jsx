@@ -1,11 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { FaPlay, FaPause, FaClock, FaRedo, FaHome, FaSave } from 'react-icons/fa';
 import { motion } from 'framer-motion';
-import { BookOpen, GraduationCap, Lightbulb, PenTool, Brain } from 'lucide-react';
+import { 
+  BookOpen, 
+  GraduationCap, 
+  Lightbulb, 
+  PenTool, 
+  Brain,
+  BookOpenCheck,
+  Timer,
+  Hash,
+  CalendarDays,
+  GraduationCap as ExamIcon
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Logo from '../assets/qbank.svg';
 import Navbar from '../components/Navbar';
 import UserInfoCard from '../components/UserInfoCard';
+import FormInput from '../components/FormInput';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -18,8 +30,8 @@ const QBankApp = ({ user }) => {
   const [quizSettings, setQuizSettings] = useState({
     subject: 'english',
     examType: 'utme',
-    numberOfQuestions: 40,
-    timeLimit: 60, // in minutes
+    numberOfQuestions: 15,
+    timeLimit: 30, // in minutes
     year: '', 
   });
   const [timeLeft, setTimeLeft] = useState(0);
@@ -182,16 +194,38 @@ const QBankApp = ({ user }) => {
   if (error) return <div className="text-center mt-8 text-red-500">{error}</div>;
 
   if (!quizStarted && !quizCompleted) {
+    const subjectOptions = [
+      { value: 'english', label: 'English' },
+      { value: 'mathematics', label: 'Mathematics' },
+      { value: 'physics', label: 'Physics' },
+      { value: 'chemistry', label: 'Chemistry' },
+      { value: 'commerce', label: 'Commerce' },
+      { value: 'accounting', label: 'Accounting' },
+      { value: 'biology', label: 'Biology' }
+    ];
+
+    const examTypeOptions = [
+      { value: 'utme', label: 'UTME' },
+      { value: 'wassce', label: 'WASSCE' },
+      { value: 'post-utme', label: 'Post-UTME' }
+    ];
+
+    const yearOptions = [
+      { value: '', label: 'All Years' },
+      ...Array.from({ length: 23 }, (_, i) => ({
+        value: String(2023 - i),
+        label: String(2023 - i)
+      }))
+    ];
+
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-400 to-purple-500 relative overflow-hidden">
-      
         {/* Background Icons */}
-
         {[...Array(20)].map((_, i) => {
           const Icon = icons[Math.floor(Math.random() * icons.length)];
           const top = `${Math.random() * 100}%`;
           const left = `${Math.random() * 100}%`;
-          const size = 16 + Math.random() * 32; // Random size between 16 and 48
+          const size = 16 + Math.random() * 32;
           return (
             <Icon 
               key={i}
@@ -204,78 +238,65 @@ const QBankApp = ({ user }) => {
         <h1 className="text-3xl mt-5 font-bold text-center mb-8 text-indigo-900">Setup</h1>
         <UserInfoCard user={user} quizSettings={quizSettings} quizCompleted={quizCompleted} />
         <div className="bg-white rounded-lg shadow-md p-6 m-6">
-        
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Subject</label>
-            <select
-              name="subject"
-              value={quizSettings.subject}
-              onChange={handleSettingsChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-            >
-              <option value="english">English</option>
-              <option value="mathematics">Mathematics</option>
-              <option value="physics">Physics</option>
-              <option value="chemistry">Chemistry</option>
-              <option value="commerce">Commerce</option>
-              <option value="accounting">Accounting</option>
-              <option value="biology">Biology</option>
-              
-            </select>
-          </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Exam Type</label>
-            <select
-              name="examType"
-              value={quizSettings.examType}
-              onChange={handleSettingsChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-            >
-              <option value="utme">UTME</option>
-              <option value="wassce">WASSCE</option>
-              <option value="post-utme">Post-UTME</option>
-            </select>
-          </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Year</label>
-            <select
-              name="year"
-              value={quizSettings.year}
-              onChange={handleSettingsChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-            >
-              <option value="">All Years</option>
-              {Array.from({ length: 23 }, (_, i) => 2023 - i).map(year => (
-                <option key={year} value={year}>{year}</option>
-              ))}
-            </select>
-          </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Number of Questions</label>
-            <input
-              type="number"
-              name="numberOfQuestions"
-              value={quizSettings.numberOfQuestions}
-              onChange={handleSettingsChange}
-              min="1"
-              max="100"
-              className="mt-1 block w-full text-black rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700">Time Limit (minutes)</label>
-            <input
-              type="range"
-              name="timeLimit"
-              value={quizSettings.timeLimit}
-              onChange={handleSettingsChange}
-              min="30"
-              max="120"
-              step="30"
-              className="mt-1 block w-full"
-            />
-            <span className="text-sm text-gray-500">{quizSettings.timeLimit} minutes</span>
-          </div>
+          <FormInput
+            label="Subject"
+            icon={BookOpenCheck}
+            type="select"
+            name="subject"
+            value={quizSettings.subject}
+            onChange={handleSettingsChange}
+            options={subjectOptions}
+          />
+
+          <FormInput
+            label="Exam Type"
+            icon={GraduationCap}
+            type="select"
+            name="examType"
+            value={quizSettings.examType}
+            onChange={handleSettingsChange}
+            options={examTypeOptions}
+          />
+
+          <FormInput
+            label="Year"
+            icon={CalendarDays}
+            type="select"
+            name="year"
+            value={quizSettings.year}
+            onChange={handleSettingsChange}
+            options={yearOptions}
+          />
+
+          <FormInput
+            label="Number of Questions"
+            icon={Hash}
+            type="number"
+            name="numberOfQuestions"
+            value={quizSettings.numberOfQuestions}
+            onChange={handleSettingsChange}
+            min="1"
+            max="100"
+            placeholder="Enter number of questions"
+            rightElement={
+              <span className="text-sm text-gray-500">questions</span>
+            }
+          />
+
+          <FormInput
+            label="Time Limit"
+            icon={Timer}
+            type="range"
+            name="timeLimit"
+            value={quizSettings.timeLimit}
+            onChange={handleSettingsChange}
+            min="10"
+            max="120"
+            step="5"
+            unit="m"
+            showValue={true}
+          />
+
           <button
             onClick={handleStartQuiz}
             className="w-full bg-indigo-500 text-white py-2 px-4 rounded-lg hover:bg-indigo-600 transition duration-300"
