@@ -35,4 +35,4 @@ class UserSerializer(serializers.ModelSerializer):
 class GlobalSettingsSerializer(serializers.ModelSerializer):
     class Meta:
         model = GlobalSettings
-        fields = ['backend_base_url', 'frontend_base_url', 'payment_page_url', 'site_name', 'cbt_api_token', 'contact_email']
+        fields = '__all__'

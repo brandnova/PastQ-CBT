@@ -1,17 +1,17 @@
-// src/pages/PaymentRedirectHandler.jsx
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Alert, AlertDescription, AlertTitle } from '../components/alert';
 import { Button } from '../components/button';
+import { Copy, CheckCircle } from 'lucide-react';
 
 const PaymentRedirectHandler = ({ user }) => {
   const [paymentStatus, setPaymentStatus] = useState(null);
   const [paymentReference, setPaymentReference] = useState(null);
+  const [showCopyAlert, setShowCopyAlert] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Parse hash parameters if they're in the URL hash
     const params = new URLSearchParams(
       window.location.hash.includes('?') 
         ? window.location.hash.split('?')[1] 
@@ -28,7 +28,6 @@ const PaymentRedirectHandler = ({ user }) => {
   };
 
   const handleContactSupport = () => {
-    // Implement your contact support logic here
     console.log('Contacting support...');
   };
 
@@ -41,14 +40,32 @@ const PaymentRedirectHandler = ({ user }) => {
       }
     } catch (error) {
       console.error('Failed to initialize payment:', error);
-      // Optionally set an error state if you want to show the error to the user
       setError(error.response?.data?.error || 'Failed to initialize payment. Please try again.');
+    }
+  };
+
+  const handleCopyReference = async () => {
+    try {
+      await navigator.clipboard.writeText(paymentReference);
+      setShowCopyAlert(true);
+      setTimeout(() => setShowCopyAlert(false), 3000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
     }
   };
 
   return (
     <div className="container mx-auto p-4 max-w-2xl">
       <div className="bg-white shadow-md rounded-lg p-6">
+        {showCopyAlert && (
+          <Alert className="bg-green-100 border-green-400 text-green-700 mb-4 transition-opacity duration-300">
+            <AlertTitle className="text-sm font-medium flex items-center gap-2">
+              <CheckCircle className="h-4 w-4" />
+              Copied Successfully
+            </AlertTitle>
+          </Alert>
+        )}
+
         {paymentStatus === 'success' ? (
           <Alert className="bg-green-100 border-green-400 text-green-700 mb-4">
             <AlertTitle className="text-lg font-bold">
@@ -60,7 +77,23 @@ const PaymentRedirectHandler = ({ user }) => {
               </p>
               <p className="mt-2">Your subscription is now active.</p>
               {paymentReference && (
-                <p className="mt-2">Payment Reference: {paymentReference}</p>
+                <div className="mt-4 p-3 bg-white rounded-md border border-green-200">
+                  <p className="text-sm text-gray-600 mb-2">
+                    Please save your payment reference for future correspondence with support or for your records.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <code className="bg-gray-100 px-3 py-1 rounded flex-1">
+                      {paymentReference}
+                    </code>
+                    <Button
+                      onClick={handleCopyReference}
+                      className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded"
+                    >
+                      <Copy className="h-4 w-4" />
+                      Copy
+                    </Button>
+                  </div>
+                </div>
               )}
             </AlertDescription>
           </Alert>

@@ -3,12 +3,14 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import Logo from '../assets/qbank.svg';
 import { Menu, X } from 'lucide-react';
+import { useGlobalSettings } from '../contexts/GlobalSettingsContext';
 
 const Navbar = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { settings, loading } = useGlobalSettings();
 
   useEffect(() => {
     const checkAuth = () => {
@@ -30,25 +32,13 @@ const Navbar = () => {
         withCredentials: true
       });
       
-      // Remove access token from localStorage
       localStorage.removeItem('access_token');
-      
-      // Clear any other auth-related data from localStorage if necessary
-      // For example:
       localStorage.removeItem('user_data');
-      
-      // Update authentication state
       setIsAuthenticated(false);
-      
-      // Dispatch a custom event to notify other components about the logout
       window.dispatchEvent(new Event('logout'));
-      
-      
-      // Redirect to the auth page
       navigate('/auth');
     } catch (error) {
       console.error('Error during logout:', error);
-      // Even if the server request fails, we should still clear local data
       localStorage.removeItem('access_token');
       setIsAuthenticated(false);
       window.dispatchEvent(new Event('logout'));
@@ -60,14 +50,19 @@ const Navbar = () => {
     setIsOpen(!isOpen);
   };
 
+  // Get site name from settings with fallback
+  const siteName = settings?.site_name || 'Q-Bank';
+
   return (
     <nav className="relative top-0 left-0 right-0 bg-white shadow-lg z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0 flex items-center">
-              <img src={Logo} alt="Logo" className="h-8 w-auto" />
-              <span className="ml-2 text-xl font-semibold text-gray-800">Q-Bank</span>
+              <img src={Logo} alt={siteName} className="h-8 w-auto" />
+              <span className="ml-2 text-xl font-semibold text-gray-800">
+                {!loading ? siteName : 'Loading...'}
+              </span>
             </Link>
           </div>
           <div className="hidden md:ml-6 md:flex md:items-center md:space-x-4">
@@ -109,10 +104,13 @@ const NavItems = ({ isAuthenticated, logout, mobile = false, currentPath }) => {
   return (
     <>
       <Link to="/" className={linkClasses('/')}>Home</Link>
+      {isAuthenticated && <Link to="/subscribe" className={linkClasses('/subscribe')}>Subscribe</Link>}
       <Link to="/questionbank" className={linkClasses('/questionbank')}>CBT</Link>
       <Link to="/about" className={linkClasses('/about')}>About</Link>
       {isAuthenticated ? (
-        <button onClick={logout} className={logoutClasses}>Logout</button>
+        <>
+          <button onClick={logout} className={logoutClasses}>Logout</button>
+        </>
       ) : (
         <Link to="/auth" className={linkClasses('/auth')}>Get Started</Link>
       )}
