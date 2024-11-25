@@ -3,12 +3,14 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import Logo from '../assets/qbank.svg';
 import { Menu, X } from 'lucide-react';
+import { useGlobalSettings } from '../contexts/GlobalSettingsContext';
 
 const Navbar = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { settings, loading } = useGlobalSettings();
 
   useEffect(() => {
     const checkAuth = () => {
@@ -48,14 +50,19 @@ const Navbar = () => {
     setIsOpen(!isOpen);
   };
 
+  // Get site name from settings with fallback
+  const siteName = settings?.site_name || 'Q-Bank';
+
   return (
     <nav className="relative top-0 left-0 right-0 bg-white shadow-lg z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0 flex items-center">
-              <img src={Logo} alt="Logo" className="h-8 w-auto" />
-              <span className="ml-2 text-xl font-semibold text-gray-800">Q-Bank</span>
+              <img src={Logo} alt={siteName} className="h-8 w-auto" />
+              <span className="ml-2 text-xl font-semibold text-gray-800">
+                {!loading ? siteName : 'Loading...'}
+              </span>
             </Link>
           </div>
           <div className="hidden md:ml-6 md:flex md:items-center md:space-x-4">

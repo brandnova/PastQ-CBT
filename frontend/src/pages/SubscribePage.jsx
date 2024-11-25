@@ -6,6 +6,7 @@ import api from '../lib/api';
 import Navbar from '../components/Navbar';
 import { Alert, AlertDescription } from '../components/alert';
 import { Card, CardHeader, CardContent, CardFooter } from '../components/ui/card';
+import { useGlobalSettings } from '../contexts/GlobalSettingsContext';
 
 const BenefitItem = ({ icon: Icon, title, description }) => (
   <div className="flex items-start space-x-3 p-4 rounded-lg hover:bg-gray-50 transition-colors">
@@ -23,6 +24,7 @@ const Subscribe = ({ user }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { settings, loading: settingsLoading } = useGlobalSettings();
 
   const handleSubscribe = async () => {
     try {
@@ -58,7 +60,7 @@ const Subscribe = ({ user }) => {
     {
       icon: Headphones,
       title: "Premium Support",
-      description: "Priority customer support whenever you need help"
+      description: `Priority support at ${settings?.contact_email}`
     }
   ];
 
@@ -67,7 +69,7 @@ const Subscribe = ({ user }) => {
       <Navbar />
       
       <main className="container mx-auto px-4 py-8 md:py-12 max-w-4xl">
-      <div className="mb-8">
+        <div className="mb-8">
           <button
             onClick={() => navigate('/')}
             className="group flex items-center px-4 py-2 text-base font-medium 
@@ -78,19 +80,19 @@ const Subscribe = ({ user }) => {
           >
             <ArrowLeft className="h-5 w-5 mr-2 text-gray-600 group-hover:text-gray-800 
               transition-transform group-hover:-translate-x-0.5" />
-            <span className="text-gray-700 group-hover:text-gray-900">Return Home</span>
+            <span className="text-gray-700 group-hover:text-gray-900">Return to {settings?.site_name}</span>
           </button>
         </div>
 
         {error && (
-          <Alert variant="destructive" className="mb-6">
+          <Alert variant="destructive" className="mb-6 bg-gray-500 outline outline-indigo-600">
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
         <div className="text-center mb-8 md:mb-12">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
-            Unlock Lifetime Access
+            Unlock Lifetime Access to {settings?.site_name}
           </h1>
           <p className="text-gray-600 max-w-2xl mx-auto text-sm md:text-base">
             One-time payment for unlimited access to all our premium features
@@ -119,7 +121,9 @@ const Subscribe = ({ user }) => {
               <h2 className="text-2xl font-bold mb-2">Premium Access</h2>
               <div className="flex flex-col items-center">
                 <div className="flex items-baseline">
-                  <span className="text-4xl font-extrabold">₦5,000</span>
+                  <span className="text-4xl font-extrabold">
+                    ₦{settings?.subscription_price?.toLocaleString()}
+                  </span>
                 </div>
                 <span className="text-indigo-100 text-sm mt-1">One-time payment</span>
               </div>
@@ -146,10 +150,10 @@ const Subscribe = ({ user }) => {
               <div className="w-full space-y-4">
                 <button
                   onClick={handleSubscribe}
-                  disabled={loading}
+                  disabled={loading || settingsLoading}
                   className={`w-full bg-indigo-600 text-white py-3 px-6 rounded-lg font-semibold
                     transition duration-300 shadow-md hover:shadow-lg
-                    ${loading ? 
+                    ${(loading || settingsLoading) ? 
                       'opacity-50 cursor-not-allowed' : 
                       'hover:bg-indigo-700 transform hover:-translate-y-0.5'
                     }`}
