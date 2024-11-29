@@ -10,8 +10,8 @@ import ResetPassword from './pages/ResetPassword';
 import TrialMode from './pages/TrialPage';
 import Subscribe from './pages/SubscribePage';
 import PaymentRedirectHandler from './pages/PaymentRedirectHandler';
+import TelegramFloatingButton from './components/TelegramFloatingButton'; // Import the new component
 import { GlobalSettingsProvider } from './contexts/GlobalSettingsContext';
-
 
 const App = () => {
   const isAuthenticated = !!localStorage.getItem('access_token');
@@ -60,8 +60,12 @@ const App = () => {
               <ProtectedRoute>
                 <PaymentRedirectHandler />
               </ProtectedRoute>
-            } />
+            } 
+          />
         </Routes>
+        
+        {/* Add the Telegram Floating Button */}
+        <TelegramFloatingButton />
       </Router>
     </GlobalSettingsProvider>
   );
