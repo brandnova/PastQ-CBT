@@ -1,7 +1,7 @@
 // src/pages/SubscribePage.jsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, CheckCircle, ArrowLeft, Infinity, Zap, BookOpen, Headphones } from 'lucide-react';
+import { Shield, CheckCircle, ArrowLeft, Zap, BookOpen, Headphones } from 'lucide-react';
 import api from '../lib/api';
 import Navbar from '../components/Navbar';
 import { Alert, AlertDescription } from '../components/alert';
@@ -30,9 +30,9 @@ const Subscribe = ({ user }) => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await api.post('/payments/initialize/');
-  
+
       if (response.data.authorization_url) {
         window.location.href = response.data.authorization_url;
       }
@@ -48,20 +48,20 @@ const Subscribe = ({ user }) => {
 
   const benefits = [
     {
-      icon: Infinity,
-      title: "Lifetime Access",
-      description: "Unlimited access to all question banks, forever"
+      icon: Zap,
+      title: "Unrestricted Access",
+      description: "Enjoy unlimited access to all our premium features for your subscription period.",
     },
     {
       icon: BookOpen,
       title: "Study Resources",
-      description: "Comprehensive study materials and practice tests"
+      description: "Comprehensive study materials and practice tests tailored to help you excel.",
     },
     {
       icon: Headphones,
-      title: "Premium Support",
-      description: `Priority support at ${settings?.contact_email}`
-    }
+      title: "Priority Support",
+      description: `Get premium support anytime at ${settings?.contact_email}.`,
+    },
   ];
 
   return (
@@ -92,10 +92,10 @@ const Subscribe = ({ user }) => {
 
         <div className="text-center mb-8 md:mb-12">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
-            Unlock Lifetime Access to {settings?.site_name}
+            Unlock Premium Features with a Monthly Plan
           </h1>
           <p className="text-gray-600 max-w-2xl mx-auto text-sm md:text-base">
-            One-time payment for unlimited access to all our premium features
+            Enjoy unrestricted access to all our premium features during your subscription period.
           </p>
         </div>
 
@@ -118,14 +118,14 @@ const Subscribe = ({ user }) => {
               <div className="flex justify-center mb-4">
                 <Shield className="h-12 w-12" />
               </div>
-              <h2 className="text-2xl font-bold mb-2">Premium Access</h2>
+              <h2 className="text-2xl font-bold mb-2">Premium Monthly Plan</h2>
               <div className="flex flex-col items-center">
                 <div className="flex items-baseline">
                   <span className="text-4xl font-extrabold">
                     ₦{settings?.subscription_price?.toLocaleString()}
                   </span>
                 </div>
-                <span className="text-indigo-100 text-sm mt-1">One-time payment</span>
+                <span className="text-indigo-100 text-sm mt-1">Billed monthly</span>
               </div>
             </CardHeader>
 
@@ -133,15 +133,15 @@ const Subscribe = ({ user }) => {
               <ul className="space-y-3">
                 <li className="flex items-center text-sm text-gray-600">
                   <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                  Lifetime access to all features
+                  Unlimited access during the subscription period
                 </li>
                 <li className="flex items-center text-sm text-gray-600">
                   <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                  No recurring fees
+                  No commitment, cancel anytime
                 </li>
                 <li className="flex items-center text-sm text-gray-600">
                   <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
-                  Full access to future updates
+                  Full access to all updates and features
                 </li>
               </ul>
             </CardContent>
@@ -158,7 +158,7 @@ const Subscribe = ({ user }) => {
                       'hover:bg-indigo-700 transform hover:-translate-y-0.5'
                     }`}
                 >
-                  {loading ? 'Processing...' : 'Get Lifetime Access'}
+                  {loading ? 'Processing...' : 'Subscribe Now'}
                 </button>
                 <div className="flex items-center justify-center text-sm text-gray-500 space-x-2">
                   <Shield className="h-4 w-4" />

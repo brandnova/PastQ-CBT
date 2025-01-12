@@ -142,8 +142,10 @@ const TrialMode = ({ user, setUser }) => {
   const SubscriptionModal = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white p-8 rounded-lg max-w-md w-full">
-        <h2 className="text-2xl font-bold mb-4">Trial Period Ended</h2>
-        <p className="mb-4">You've reached the limit of your trial. Subscribe to our premium version to enjoy:</p>
+        <h2 className="text-2xl font-bold mb-4">Hello, Dear User!</h2>
+        <p className="mb-4">
+          Enjoying our site so far? To continue accessing all our features and benefits, consider subscribing to our premium plan.
+        </p>
         <ul className="list-disc pl-5 mb-4">
           <li>Unlimited Access to Questions</li>
           <li>All Available Subjects</li>
