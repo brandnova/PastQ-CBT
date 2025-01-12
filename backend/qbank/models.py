@@ -1,3 +1,4 @@
+from django.utils import timezone
 from django.contrib.auth.models import BaseUserManager, AbstractUser
 from django.db import models
 from django.core.validators import MinValueValidator
@@ -34,6 +35,7 @@ class User(AbstractUser):
     password = models.CharField(max_length=255)
     username = None  
     is_subscribed = models.BooleanField(default=False)
+    subscription_expires_at = models.DateTimeField(null=True, blank=True)
     payment_reference = models.CharField(max_length=100, null=True, blank=True) 
     trial_calls = models.PositiveSmallIntegerField(default=10)
     trial_complete = models.BooleanField(default=False)
@@ -43,7 +45,15 @@ class User(AbstractUser):
 
     objects = UserManager()  
 
+    
+    def is_subscription_active(self):
+        """Check if user has an active subscription"""
+        if self.subscription_expires_at:
+            return self.subscription_expires_at > timezone.now()
+        return False
+
     def save(self, *args, **kwargs):
+        self.is_subscribed = self.is_subscription_active()
         self.username = self.email
         super(User, self).save(*args, **kwargs)
 

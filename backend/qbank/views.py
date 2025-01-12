@@ -7,12 +7,15 @@ import hashlib
 import json
 import logging
 from decimal import Decimal
+from django.utils import timezone
 from django.conf import settings
 from django.shortcuts import redirect
 from django.urls import reverse
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import exceptions, status
+
+from .utils import update_subscription_status
 from .authentication import JWTAuthentication, create_refresh_token, create_access_token, decode_refresh_token
 from .serializers import UserSerializer, GlobalSettingsSerializer
 from .models import User, UserToken, Reset, GlobalSettings, PaymentTransaction
@@ -46,6 +49,9 @@ class LoginAPIView(APIView):
         if not user.check_password(password):
             raise exceptions.AuthenticationFailed('Incorrect password. Please review login credentials')
         
+        # Update subscription status
+        update_subscription_status(user)
+        
         # Create tokens
         access_token = create_access_token(user.id)
         refresh_token = create_refresh_token(user.id)
@@ -58,9 +64,7 @@ class LoginAPIView(APIView):
         )
 
         response = Response()
-
         response.set_cookie(key='refresh_token', value=refresh_token, httponly=True)
-
         response.data = {
             'token': access_token
         }
@@ -71,35 +75,46 @@ class UserAPIView(APIView):
     authentication_classes = [JWTAuthentication]
 
     def get(self, request):
+        # Update subscription status before returning user data
+        update_subscription_status(request.user)
         return Response(UserSerializer(request.user).data)
 
     def patch(self, request):
         user = request.user
         data = request.data
 
-        # Check if 'trial_calls' is in the request data
+        # Update subscription status
+        update_subscription_status(user)
+
+        # Handle trial-related updates
         if 'trial_calls' in data:
             try:
                 trial_calls = int(data['trial_calls'])
                 if trial_calls < 0:
-                    return Response({'error': 'trial_calls must be a non-negative integer'}, status=status.HTTP_400_BAD_REQUEST)
+                    return Response(
+                        {'error': 'trial_calls must be a non-negative integer'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
                 user.trial_calls = trial_calls
             except ValueError:
-                return Response({'error': 'Invalid value for trial_calls'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {'error': 'Invalid value for trial_calls'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-        # Check if 'trial_complete' is in the request data
         if 'trial_complete' in data:
             try:
                 trial_complete = bool(data['trial_complete'])
                 user.trial_complete = trial_complete
             except ValueError:
-                return Response({'error': 'Invalid value for trial_complete'}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {'error': 'Invalid value for trial_complete'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-        # Save the user object if any changes were made
         if 'trial_calls' in data or 'trial_complete' in data:
             user.save()
 
-        # Return the updated user data
         return Response(UserSerializer(user).data)
 
 
@@ -335,11 +350,7 @@ class PaymentInitializationView(APIView):
 
 
 class PaymentCallbackView(APIView):
-    """
-    Handles payment verification via callback (backup for webhook)
-    Authentication not required as this is called by Paystack
-    """
-    authentication_classes = []  # No authentication needed for callback
+    authentication_classes = []
 
     def get(self, request):
         reference = request.GET.get('reference')
@@ -354,19 +365,17 @@ class PaymentCallbackView(APIView):
                 verification_status = self.verify_payment(reference)
 
                 if verification_status:
-                    if not transaction.user.is_subscribed:
-                        transaction.user.is_subscribed = True
-                        transaction.user.payment_reference = reference
-                        transaction.user.save()
-
-                        transaction.status = 'success'
-                        transaction.metadata.update({
-                            'verification_method': 'callback',
-                            'verified_at': datetime.datetime.now().isoformat()
-                        })
-                        transaction.save()
-                        
-                        logger.info(f"Successfully verified payment via callback for user {transaction.user.id}")
+                    # Update subscription status with new payment
+                    update_subscription_status(transaction.user, transaction)
+                    
+                    transaction.status = 'success'
+                    transaction.metadata.update({
+                        'verification_method': 'callback',
+                        'verified_at': timezone.now().isoformat()
+                    })
+                    transaction.save()
+                    
+                    logger.info(f"Successfully verified payment via callback for user {transaction.user.id}")
 
             status_param = 'success' if transaction.status == 'success' else 'failed'
             return redirect(
@@ -375,39 +384,15 @@ class PaymentCallbackView(APIView):
 
         except PaymentTransaction.DoesNotExist:
             logger.error(f"Transaction not found for reference: {reference}")
-            return redirect(
-                f"{GlobalSettings.objects.first().frontend_base_url}/payment-redirect?status=failed"
-            )
+            return redirect(f"{GlobalSettings.objects.first().frontend_base_url}/payment-redirect?status=failed")
         except Exception as e:
             logger.exception("Error processing callback")
-            return redirect(
-                f"{GlobalSettings.objects.first().frontend_base_url}/payment-redirect?status=failed"
-            )
-
-    def verify_payment(self, reference):
-        """Verify payment status with Paystack"""
-        url = f"https://api.paystack.co/transaction/verify/{reference}"
-        headers = {
-            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
-            "Content-Type": "application/json"
-        }
-        
-        try:
-            response = requests.get(url, headers=headers)
-            if response.status_code == 200:
-                response_data = response.json()
-                return response_data['status'] and response_data['data']['status'] == 'success'
-        except Exception as e:
-            logger.exception(f"Error verifying payment for reference: {reference}")
-        return False
+            return redirect(f"{GlobalSettings.objects.first().frontend_base_url}/payment-redirect?status=failed")
 
 
+# Modified PaymentWebhookView
 class PaymentWebhookView(APIView):
-    """
-    Handles automatic payment verification via webhook
-    Authentication not required as this is called by Paystack
-    """
-    authentication_classes = []  # No authentication needed for webhook
+    authentication_classes = []
 
     def post(self, request):
         try:
@@ -432,26 +417,21 @@ class PaymentWebhookView(APIView):
             data = payload.get('data', {})
             reference = data.get('reference')
 
-            logger.info(f"Received webhook event: {event} for reference: {reference}")
-
             if event == 'charge.success':
                 transaction = PaymentTransaction.objects.select_related('user').get(reference=reference)
+                
+                # Update subscription status with new payment
+                update_subscription_status(transaction.user, transaction)
                 
                 transaction.status = 'success'
                 transaction.metadata.update({
                     'paystack_response': data,
                     'verification_method': 'webhook',
-                    'verified_at': datetime.datetime.now().isoformat()
+                    'verified_at': timezone.now().isoformat()
                 })
                 transaction.save()
-
-                user = transaction.user
-                if not user.is_subscribed:
-                    user.is_subscribed = True
-                    user.payment_reference = reference
-                    user.save()
-                    
-                    logger.info(f"Successfully updated subscription status for user {user.id}")
+                
+                logger.info(f"Successfully updated subscription status for user {transaction.user.id}")
 
             return Response(status=status.HTTP_200_OK)
 
